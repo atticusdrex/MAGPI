@@ -26,7 +26,7 @@ class MFRegressor:
 
 
 class Hyperkriging(MFRegressor):
-    def __init__(self, *args, tol = 1e-6, max_cond = 1e3, **kwargs):
+    def __init__(self, *args, max_cond = 1e3, **kwargs):
         # Initializing the parent class 
         super().__init__(*args, **kwargs)
 
@@ -102,7 +102,7 @@ Kennedy O'Hagan Co-Kriging
 NOTE: Requires training data to be nested! 
 '''
 class KennedyOHagan(MFRegressor):
-    def __init__(self, *args, tol = 1e-6, max_cond = 1e3, **kwargs):
+    def __init__(self, *args, max_cond = 1e3, **kwargs):
         # Initializing the parent class 
         super().__init__(*args, **kwargs)
 
@@ -169,7 +169,7 @@ class KennedyOHagan(MFRegressor):
             optimizer.run(lr, epochs, params)
 
 class NARGP(MFRegressor):
-    def __init__(self, *args, tol = 1e-6, max_cond = 1e3, **kwargs):
+    def __init__(self, *args, max_cond = 1e3, **kwargs):
         # Initializing the parent class 
         super().__init__(*args, **kwargs)
 

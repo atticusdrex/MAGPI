@@ -36,7 +36,7 @@ class Constant(Mean):
         self.p_dim = 1
     
     def calibrate(self, X, Y):
-        return jnp.mean(Y[:]) * jnp.ones(Y.shape[0])
+        return jnp.mean(Y[:]) * jnp.ones(self.p_dim)
     
     def eval(self, X, params):
         return (params[0] * jnp.ones((X.shape[0], 1))).ravel()
@@ -49,6 +49,9 @@ class Zero(Mean):
 
         # Storing parameter dimension 
         self.p_dim = self.input_dim
+    
+    def calibrate(self, X, Y):
+        return jnp.zeros(self.p_dim)
     
     def eval(self, X, params):
         return np.zeros(X.shape[0])

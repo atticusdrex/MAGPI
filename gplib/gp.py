@@ -180,3 +180,4 @@ class DeltaGP:
         else:
             return mu, jnp.diag(cov)
 
+        

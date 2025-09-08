@@ -238,3 +238,123 @@ class NARGP(MFRegressor):
             )
             optimizer.kernel_latin_hypercube(k, min=-50, max = 50)
             optimizer.run(lr, epochs, params)
+
+
+class Cokriging(MFRegressor):
+    def __init__(self, *args, max_cond = 1e3, **kwargs):
+        # Initializing the parent class 
+        super().__init__(*args, **kwargs)
+
+        # Initializing the parameter vector with zeros initially 
+        self.p = {}
+
+        # Storing dimensions 
+        self.N_total = 0.0 
+        for level in range(self.K):
+            self.N_total += len(self.d[level]['Y'])
+
+        # Storing full Y matrix 
+        Y_list = [] 
+        for level in range(self.K):
+            Y_list.append(self.d[level]['Y'])
+        self.Yfull = jnp.concatenate(Y_list)
+
+        # Initializing kernel and mean functions 
+        self.input_dim = self.d[0]['X'].shape[1]
+        self.kernel = self.kernel(self.input_dim, epsilon=self.eps)
+        self.mean = self.mean(self.input_dim, epsilon = self.eps)
+
+        # Initialize kernel and mean function parameters via calibration  
+        for level in range(self.K):
+            # Initializing Linear Model of Coregionalization coefficients for each level 
+            self.p['B_%d' % level] = np.array(inv_softplus(self.eps * np.ones((self.K, self.K))))
+            self.p['B_%d' % level][level, level] = inv_softplus(1.0)
+            self.p['B_%d' % level] = jnp.array(self.p['B_%d' % level])
+            # Calibrating kernel hyperparameters  
+            self.p['k_param_%d' % level] = self.kernel.calibrate(self.d[level]['X'], self.d[level]['Y'])
+            # Calibrating mean function hyperparameters 
+            self.p['m_param_%d' % level] = self.mean.calibrate(self.d[level]['X'], self.d[level]['Y'])
+            # Storing noise variances 
+            self.p['noise_var_%d' % level] = inv_softplus(self.d[level]['noise_var'])
+        
+        # Initializing L and alpha matrices 
+        self.L = self.get_L(self.p)
+        self.alpha = self.get_alpha(self.L, self.p)
+        
+    def Ktrain(self, p):
+        kernel_matrices = [] 
+        for level1 in range(self.K):
+            mat_list = []
+            for level2 in range(self.K):
+                # Initializing a kernel matrix 
+                Kmat = jnp.zeros((self.d[level1]['X'].shape[0], self.d[level2]['X'].shape[0]))
+                # Looping through the LMC kernels 
+                for i in range(self.K):
+                    Kmat += softplus(p['B_%d' % i][level1, level2]) * K(self.d[level1]['X'], self.d[level2]['X'], self.kernel, p['k_param_%d' % i])
+                # Adding noise if necessary 
+                if level1 == level2:
+                    Kmat += (softplus(p['noise_var_%d' % level1]) + self.eps) * jnp.eye(Kmat.shape[0])
+                # Appending this kernel matrix onto the mat_list 
+                mat_list.append(Kmat)
+            # Appending this row to the list of kernel matrices 
+            kernel_matrices.append(mat_list)
+        # Returning the block matrix of the combined kernel matrices
+        return jnp.block(kernel_matrices)
+    
+    def Ktest(self, level1, Xtest, p):
+        kernel_matrices = []
+        mat_list = []
+        for level2 in range(self.K):
+            # Initializing a kernel matrix 
+            Kmat = jnp.zeros((Xtest.shape[0], self.d[level2]['X'].shape[0]))
+            # Looping through the LMC kernels 
+            for i in range(self.K):
+                Kmat += softplus(p['B_%d' % i][level1, level2]) * K(Xtest, self.d[level2]['X'], self.kernel, p['k_param_%d' % i])
+            # Appending this kernel matrix onto the mat_list 
+            mat_list.append(Kmat)
+        # Appending this row to the list of kernel matrices 
+        kernel_matrices.append(mat_list)
+        return jnp.block(kernel_matrices)
+
+
+    
+    def mean_train(self, p):
+        mean_evals = []
+        # Looping through the levels of fidelity and evaluating the mean 
+        for level in range(self.K):
+            mean_evals.append(self.mean.eval(self.d[level]['X'], p['m_param_%d' % level]))
+        # Returning the concatenated stack of mean function evaluations 
+        return jnp.concat(mean_evals)
+
+    def get_L(self, p):
+        # Form kernel matrix 
+        Ktrain = self.Ktrain(p)
+        # Take cholesky factorization 
+        return cholesky(Ktrain, lower=True)
+
+    def get_alpha(self, L, p):
+        # Solving the linear system 
+        return cho_solve((L, True), self.Yfull - self.mean_train(p))
+    
+    def predict(self, Xtest, level, full_cov = True):
+        # Creating the test kernel matrix 
+        Ktest = self.Ktest(level, Xtest, self.p)
+        # Now we create the K(Xtest, Xtest) matrix (with the LMC structure)
+        Kaux = jnp.zeros((Xtest.shape[0], Xtest.shape[0]))
+        for sublevel in range(self.K):
+            Kaux += softplus(self.p['B_%d' % sublevel][level, level]) * K(Xtest, Xtest, self.kernel, self.p['k_param_%d' % sublevel])
+        # We assume the L and alpha have already been formed 
+        mu = Ktest @ self.alpha + self.mean.eval(Xtest, self.p['m_param_%d' % level])
+        cov = Kaux - Ktest @ cho_solve((self.L, True), Ktest.T)
+        # Returning full covariance or diagonal 
+        if full_cov:
+            return mu, cov 
+        else:
+            return mu, jnp.diag(cov)
+        
+    def set_params(self, p):
+        self.p = deepcopy(p)
+        self.L = self.get_L(p)
+        self.alpha = self.get_alpha(self.L, p)
+
+

@@ -1,7 +1,7 @@
 from .likelihood import * 
 
 class Momentum:
-    def __init__(self, model, objective_func, beta = 0.9):
+    def __init__(self, model, objective_func, beta = 0.9, constraints = None):
         # Storing model and objective function
         self.model, self.obj, self.beta = model, objective_func, beta
 
@@ -14,9 +14,13 @@ class Momentum:
 
         # Store best params
         self.best_p = deepcopy(model.p)
+
+        # Store parameter constraints 
+        self.constraints = constraints 
     
-    def kernel_latin_hypercube(self, k, min=-50.0, max=50.0):
+    def latin_hypercube_init(self, param, k, min=-50.0, max=50.0):
         """
+        param: the parameter to optimize
         k: number of samples
         min: array of length d with min values
         max: array of length d with max values
@@ -33,12 +37,12 @@ class Momentum:
         # Scale to [mins, maxs]
         X_scaled = qmc.scale(X, min*np.ones(d), max*np.ones(d))
 
-        def sample(k_param):
+        def sample(this_sample):
             # Copy model parameters 
             p = deepcopy(self.model.p)
 
             # Replace kernel hyperparameters
-            p['k_param'] = k_param 
+            p[param] = this_sample
 
             # Evaluate objective function 
             return self.obj(self.model, p)
@@ -57,7 +61,7 @@ class Momentum:
         # Storing the best parameters
         if best_loss < self.best_loss: 
             p = deepcopy(self.model.p)
-            p['k_param'] = best_p 
+            p[param] = best_p 
             self.model.set_params(p)
 
             self.best_loss, self.best_p = best_loss, p
@@ -87,6 +91,13 @@ class Momentum:
             for param in params:
                 v[param] = self.beta * v[param] - lr * grad[param]
                 p[param] += v[param]
+
+            # Enforce constraints 
+            if self.constraints is not None:
+                for param in self.constraints.keys():
+                    if param in params:
+                        p[param] = self.constraints[param](p[param])
+
             
             # Display the current loss 
             iterator.set_postfix_str(f'Loss: {loss:.4e}')

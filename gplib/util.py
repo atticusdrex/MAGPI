@@ -1,6 +1,6 @@
 import jax 
 import jax.numpy as jnp
-from jax import vmap, value_and_grad
+from jax import vmap, value_and_grad, random
 from jax.scipy.linalg import cho_solve, cholesky
 
 from copy import deepcopy
@@ -49,95 +49,48 @@ def create_batches(X, Y, batch_size, shuffle=True):
         Y_batch = Y[i:i + batch_size]
         yield X_batch, Y_batch
 
-'''
-ADAM Optimization Routine
-------------------------------------
+# Function for greedily choosing the number of inducing inputs 
+def greedy_k_center(X, k, seed=42):
+    np.random.seed(42)
+    N = X.shape[0]
+    selected_indices = []
+    idx = np.random.randint(N)
+    selected_indices.append(idx)
 
-I do quite a bit of optimizing in these gosh-darn ml scripts and it would be nice to have an encapsulated script for unconstrained ADAM optimization which I could plug into the whole thing instead of rewriting it each time.
-'''
-def ADAM(
-    loss_func, p,
-    keys_to_optimize,
-    X=jnp.ones((1,1)), 
-    Y=jnp.ones((1,1)),
-    constr={},
-    batch_size=250,
-    epochs=100,
-    lr=1e-8,
-    beta1=0.9,
-    beta2=0.999,
-    epsilon=1e-8,
-    shuffle=False,
-    max_backoff=50
-):
-    def contains_nan(val_dict):
-        return any(jnp.isnan(x).any() for x in val_dict.values())
+    distances = np.linalg.norm(X - X[idx], axis=1)
 
-    def adam_step(m, v, p, grad, lr, t):
-        m = beta1 * m + (1 - beta1) * grad
-        v = beta2 * v + (1 - beta2) * (grad ** 2)
+    for _ in range(1, k):
+        idx = np.argmax(distances)
+        selected_indices.append(idx)
+        new_distances = np.linalg.norm(X - X[idx], axis=1)
+        distances = np.minimum(distances, new_distances)
 
-        m_hat = m / (1 - beta1 ** t)
-        v_hat = v / (1 - beta2 ** t)
+    return X[np.array(selected_indices)], selected_indices
 
-        update = lr * m_hat / (jnp.sqrt(v_hat) + epsilon)
-        p = p - update
-        return m, v, p
+# Special KL-divergence function
+def KL_div(mu_q, L_q, mu_p, L_p):
+    """
+    KL(q(mu_q, L_q) || p(mu_p, L_p))
+    where L_q and L_p are Cholesky factors of the covariances.
+    """
+    k = mu_q.shape[0]
 
-    def try_adam_step(grad_func, p, m, v, lr, t):
-        new_p, new_m, new_v = deepcopy(p), {}, {}
-        for key in keys_to_optimize:
-            m_k, v_k, p_k = adam_step(m[key], v[key], p[key], grad[key], lr, t)
-            if key in constr:
-                p_k = constr[key](p_k)
-            new_p[key], new_m[key], new_v[key] = p_k, m_k, v_k
+    # Covariance matrices
+    Sigma_q = L_q @ L_q.T
+    Sigma_p = L_p @ L_p.T
 
-        # Keep batch inputs
-        new_p['X'], new_p['Y'] = p['X'], p['Y']
-        loss, grad_new = grad_func(new_p)
-        return loss, grad_new, new_p, new_m, new_v
+    # Trace term: tr(Sigma_p^{-1} Sigma_q)
+    # Solve instead of explicitly inverting
+    Sigma_p_inv = jnp.linalg.inv(Sigma_p)
+    Tr_q = jnp.trace(Sigma_p_inv @ Sigma_q)
 
-    # Initialize optimizer states
-    m = {key: jnp.zeros_like(p[key]) for key in keys_to_optimize}
-    v = {key: jnp.zeros_like(p[key]) for key in keys_to_optimize}
+    # Mean term: (mu_p - mu_q)^T Sigma_p^{-1} (mu_p - mu_q)
+    diff = mu_q - mu_p
+    mean_term = jnp.inner(diff, cho_solve((L_p, True), diff))
 
-    grad_func = value_and_grad(loss_func)
+    # Log-determinant ratio
+    logdet_q = 2.0 * jnp.sum(jnp.log(jnp.diag(L_q)))
+    logdet_p = 2.0 * jnp.sum(jnp.log(jnp.diag(L_p)))
+    logdet_ratio = logdet_p - logdet_q
 
-    best_loss = jnp.inf
-    best_p = deepcopy(p)
-
-    # Breaking up the training data into batches and storing it in the parameters
-    p['X'], p['Y'] = X[:batch_size, :], Y[:batch_size]
-    _, grad = grad_func(p)
-
-    iterator = tqdm(range(epochs))
-
-    for epoch in iterator:
-        for Xbatch, Ybatch in create_batches(X, Y, batch_size, shuffle=shuffle):
-            # Setting the X batches 
-            p['X'], p['Y'] = Xbatch, Ybatch
-
-            # Making a trial learning rate 
-            trial_lr = lr
-
-            # Backing off learning rate in the case of NaNs found 
-            for _ in range(max_backoff):
-                loss, grad, trial_p, trial_m, trial_v = try_adam_step(
-                    grad_func, p, m, v, trial_lr, epoch+1
-                )
-
-                if not (jnp.isnan(loss) or contains_nan(grad)):
-                    break  # successful step
-                trial_lr *= 0.5
-            else:
-                print("Too many NaNs. Stopping optimization.")
-                return best_p  # return best found so far
-
-            if loss < best_loss:
-                best_loss, best_p = loss, deepcopy(trial_p)
-
-            p, m, v = trial_p, trial_m, trial_v
-
-            iterator.set_postfix_str(f"Loss: {loss:.5f}, LR: {trial_lr:.2e}")
-
-    return best_p
+    return 0.5 * (Tr_q + mean_term - k + logdet_ratio)

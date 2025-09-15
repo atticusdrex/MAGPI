@@ -73,7 +73,7 @@ class Hyperkriging(MFRegressor):
                 self.d[0]['model'], 
                 neg_mll, beta = beta
             )
-            optimizer.kernel_latin_hypercube(k, min=-50, max = 50)
+            optimizer.latin_hypercube_init('k_param', k, min=-50, max = 50)
             optimizer.run(lr, epochs, params)
         else:
             features = self.d[level]['X']
@@ -92,7 +92,7 @@ class Hyperkriging(MFRegressor):
                 self.d[level]['model'], 
                 neg_mll, beta = beta
             )
-            optimizer.kernel_latin_hypercube(k, min=-50, max = 50)
+            optimizer.latin_hypercube_init('k_param', k, min=-50, max = 50)
             optimizer.run(lr, epochs, params)
 
 
@@ -149,7 +149,7 @@ class KennedyOHagan(MFRegressor):
                 neg_mll, beta = beta
             )
             # Running the optimizer 
-            optimizer.kernel_latin_hypercube(k, min=-50, max = 50)
+            optimizer.latin_hypercube_init('k_param', k, min=-50, max = 50)
             params.remove("rho")
             optimizer.run(lr, epochs, params)
         else:
@@ -165,7 +165,7 @@ class KennedyOHagan(MFRegressor):
             )
 
             # Running the optimizer 
-            optimizer.kernel_latin_hypercube(k, min=-50, max = 50)
+            optimizer.latin_hypercube_init('k_param', k, min=-50, max = 50)
             optimizer.run(lr, epochs, params)
 
 class NARGP(MFRegressor):
@@ -217,7 +217,7 @@ class NARGP(MFRegressor):
                 self.d[level]['model'], 
                 neg_mll, beta = beta
             )
-            optimizer.kernel_latin_hypercube(k, min=-50, max = 50)
+            optimizer.latin_hypercube_init('k_param', k, min=-50, max = 50)
             optimizer.run(lr, epochs, params)
         else:
             features = self.d[level]['X']
@@ -236,7 +236,7 @@ class NARGP(MFRegressor):
                 self.d[level]['model'], 
                 neg_mll, beta = beta
             )
-            optimizer.kernel_latin_hypercube(k, min=-50, max = 50)
+            optimizer.latin_hypercube_init('k_param', k, min=-50, max = 50)
             optimizer.run(lr, epochs, params)
 
 
@@ -267,9 +267,7 @@ class Cokriging(MFRegressor):
         # Initialize kernel and mean function parameters via calibration  
         for level in range(self.K):
             # Initializing Linear Model of Coregionalization coefficients for each level 
-            self.p['B_%d' % level] = np.array(inv_softplus(self.eps * np.ones((self.K, self.K))))
-            self.p['B_%d' % level][level, level] = inv_softplus(1.0)
-            self.p['B_%d' % level] = jnp.array(self.p['B_%d' % level])
+            self.p['B_%d' % level] = inv_softplus(self.eps * jnp.ones((self.K, self.K)))
             # Calibrating kernel hyperparameters  
             self.p['k_param_%d' % level] = self.kernel.calibrate(self.d[level]['X'], self.d[level]['Y'])
             # Calibrating mean function hyperparameters 
@@ -289,11 +287,13 @@ class Cokriging(MFRegressor):
                 # Initializing a kernel matrix 
                 Kmat = jnp.zeros((self.d[level1]['X'].shape[0], self.d[level2]['X'].shape[0]))
                 # Looping through the LMC kernels 
-                for i in range(self.K):
-                    Kmat += softplus(p['B_%d' % i][level1, level2]) * K(self.d[level1]['X'], self.d[level2]['X'], self.kernel, p['k_param_%d' % i])
+                
                 # Adding noise if necessary 
                 if level1 == level2:
                     Kmat += (softplus(p['noise_var_%d' % level1]) + self.eps) * jnp.eye(Kmat.shape[0])
+
+                for i in range(self.K):
+                    Kmat += self.get_B(p['B_%d' % i], i)[level1, level2] * K(self.d[level1]['X'], self.d[level2]['X'], self.kernel, p['k_param_%d' % i])
                 # Appending this kernel matrix onto the mat_list 
                 mat_list.append(Kmat)
             # Appending this row to the list of kernel matrices 
@@ -301,23 +301,27 @@ class Cokriging(MFRegressor):
         # Returning the block matrix of the combined kernel matrices
         return jnp.block(kernel_matrices)
     
+    def get_B(self, L, level):
+        b = jnp.array([1 if x == level else 0 for x in range(self.K)])
+        B = softplus(jnp.tril(L) + jnp.tril(L).T)
+        return B - jnp.diag(jnp.diag(B)) + jnp.diag(b)
+
     def Ktest(self, level1, Xtest, p):
         kernel_matrices = []
         mat_list = []
+        B_list = [self.get_B(p['B_%d' % i], i) for i in range(self.K)] 
         for level2 in range(self.K):
             # Initializing a kernel matrix 
             Kmat = jnp.zeros((Xtest.shape[0], self.d[level2]['X'].shape[0]))
             # Looping through the LMC kernels 
             for i in range(self.K):
-                Kmat += softplus(p['B_%d' % i][level1, level2]) * K(Xtest, self.d[level2]['X'], self.kernel, p['k_param_%d' % i])
+                Kmat += B_list[i][level1, level2] * K(Xtest, self.d[level2]['X'], self.kernel, p['k_param_%d' % i])
             # Appending this kernel matrix onto the mat_list 
             mat_list.append(Kmat)
         # Appending this row to the list of kernel matrices 
         kernel_matrices.append(mat_list)
         return jnp.block(kernel_matrices)
 
-
-    
     def mean_train(self, p):
         mean_evals = []
         # Looping through the levels of fidelity and evaluating the mean 
@@ -341,8 +345,9 @@ class Cokriging(MFRegressor):
         Ktest = self.Ktest(level, Xtest, self.p)
         # Now we create the K(Xtest, Xtest) matrix (with the LMC structure)
         Kaux = jnp.zeros((Xtest.shape[0], Xtest.shape[0]))
+        # Kaux += K(Xtest, Xtest, self.kernel, self.p['k_param_%d' % level])
         for sublevel in range(self.K):
-            Kaux += softplus(self.p['B_%d' % sublevel][level, level]) * K(Xtest, Xtest, self.kernel, self.p['k_param_%d' % sublevel])
+            Kaux += self.get_B(self.p['B_%d' % sublevel], sublevel)[level, level] * K(Xtest, Xtest, self.kernel, self.p['k_param_%d' % sublevel])
         # We assume the L and alpha have already been formed 
         mu = Ktest @ self.alpha + self.mean.eval(Xtest, self.p['m_param_%d' % level])
         cov = Kaux - Ktest @ cho_solve((self.L, True), Ktest.T)

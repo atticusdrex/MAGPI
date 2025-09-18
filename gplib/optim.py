@@ -6,7 +6,7 @@ class Momentum:
         self.model, self.obj, self.beta = model, objective_func, beta
 
         # Storing loss function
-        self.grad_fn = value_and_grad(lambda p: self.obj(self.model, p))
+        self.grad_fn = value_and_grad(jit(lambda p: self.obj(self.model, p)))
 
         # Compute initial loss
         self.best_loss, _ = self.grad_fn(model.p)
@@ -18,7 +18,7 @@ class Momentum:
         # Store parameter constraints 
         self.constraints = constraints 
     
-    def latin_hypercube_init(self, param, k, min=-50.0, max=50.0):
+    def latin_hypercube_init(self, param, k, min=-50.0, max=50.0, seed = 42):
         """
         param: the parameter to optimize
         k: number of samples
@@ -29,7 +29,7 @@ class Momentum:
         d = self.model.kernel.p_dim 
 
         # Getting the dimension of the kernel parameters 
-        sampler = qmc.LatinHypercube(d=d)
+        sampler = qmc.LatinHypercube(d=d, seed = seed)
 
         # Generate samples in [0,1]^d
         X = sampler.random(n=k*d)
@@ -48,7 +48,7 @@ class Momentum:
             return self.obj(self.model, p)
 
         # Get the losses at each kernel parameter 
-        losses = np.array(vmap(sample)(X_scaled))
+        losses = np.array(vmap(jit(sample))(X_scaled))
         losses[np.isnan(losses)] = 1e99
         best_loss = np.min(losses)
 

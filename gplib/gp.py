@@ -142,6 +142,7 @@ class DeltaGP:
         self.L = self.get_L(self.p['k_param'], self.p['noise_var'])
         self.alpha = self.get_alpha(self.L, self.p['m_param'], self.p['rho'])
 
+    @jax.jit 
     def calibrate_noise(self, max_cond = 1e5):
         # Get condition number 
         L = self.get_L(self.p['k_param'], self.p['noise_var'])
@@ -152,21 +153,25 @@ class DeltaGP:
         # Printing new noise variance 
         print("Calibrated white noise variance: %.4e" % (softplus(self.p['noise_var'])))
 
+    @jax.jit 
     def set_params(self, p):
         self.p = deepcopy(p)
         self.L = self.get_L(self.p['k_param'], self.p['noise_var'])
         self.alpha = self.get_alpha(self.L, self.p['m_param'], self.p['rho'])
     
+    @jax.jit
     def get_L(self, k_param, noise_var):
         # Form kernel matrix 
         Ktrain = K(self.X, self.X, self.kernel, k_param) + (self.eps + softplus(noise_var)) * jnp.eye(self.X.shape[0])
         # Take cholesky factorization 
         return cholesky(Ktrain, lower=True)
     
+    @jax.jit
     def get_alpha(self, L, m_param, rho):
         # Utilize the scipy implementation of cholesky solve
         return cho_solve((L, True), (self.Y1 - rho * self.Y2) - self.mean.eval(self.X, m_param))
 
+    @jax.jit
     def predict(self, Xtest, full_cov = True):
         # Form testing kernel matrix 
         Ktest = K(Xtest, self.X, self.kernel, self.p['k_param'])

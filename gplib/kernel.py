@@ -28,7 +28,7 @@ class RBF(Kernel):
         h = (x-y).ravel()
         # Enforcing positivity and boundedness
         params = softplus(params)
-        # Computing without constraints 
+        # computing the kernel eval
         return params[0]*jnp.exp(-jnp.sum(h**2 / params[1:]))
     
 

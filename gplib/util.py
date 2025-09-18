@@ -1,6 +1,6 @@
 import jax 
 import jax.numpy as jnp
-from jax import vmap, value_and_grad, random
+from jax import vmap, value_and_grad, random, jit
 from jax.scipy.linalg import cho_solve, cholesky
 
 from copy import deepcopy

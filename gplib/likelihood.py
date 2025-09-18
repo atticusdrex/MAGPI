@@ -4,7 +4,7 @@ from .util import *
 '''
 Negative Marginal Log Likelihood 
 '''
-def neg_mll(model, p, max_cond = 1e2, cond_reg = 1e-2):
+def neg_mll(model, p):
     # Getting cholesky factors and solve linear system
     L = model.get_L(p['k_param'], p['noise_var'])
     Ytilde = model.Y - model.mean.eval(model.X, p['m_param']) 
@@ -17,7 +17,7 @@ def neg_mll(model, p, max_cond = 1e2, cond_reg = 1e-2):
 '''
 Negative Marginal Log Likelihood for DeltaGPs 
 '''
-def delta_neg_mll(model, p, max_cond = 1e2, cond_reg = 1e-2):
+def delta_neg_mll(model, p):
     # Getting cholesky factors and solve linear system
     L = model.get_L(p['k_param'], p['noise_var'])
     # Center the Y vector 

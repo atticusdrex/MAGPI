@@ -71,7 +71,7 @@ class GP:
         Ktrain = K(self.X, self.X, self.kernel, k_param) + (self.eps + softplus(noise_var)) * jnp.eye(self.X.shape[0])
         # Take cholesky factorization 
         return cholesky(Ktrain, lower=True)
-    
+
     def get_alpha(self, L, m_param):
         # Utilize the scipy implementation of cholesky solve
         return cho_solve((L, True), self.Y - self.mean.eval(self.X, m_param))
@@ -81,13 +81,16 @@ class GP:
         Ktest = K(Xtest, self.X, self.kernel, self.p['k_param'])
         # Compute posterior mean 
         mu = (Ktest @ self.alpha + self.mean.eval(Xtest, self.p['m_param'])).ravel()
-        # Computer posterior variance 
-        cov = K(Xtest, Xtest, self.kernel, self.p['k_param']) - Ktest @ cho_solve((self.L, True), Ktest.T)
         # Returning full covariance or diagonal 
         if full_cov:
+            # Computer posterior variance with full testing auxiliary matrix 
+            cov = K(Xtest, Xtest, self.kernel, self.p['k_param']) - Ktest @ cho_solve((self.L, True), Ktest.T)
             return mu, cov 
         else:
-            return mu, jnp.diag(cov)
+            # Computer posterior variance without dense test matrix
+            Kaux = (jax.vmap(lambda x: self.kernel.eval(x, x, self.p['k_param']))(Xtest)).ravel()
+            cov = Kaux - jnp.diag(Ktest @ cho_solve((self.L, True), Ktest.T))
+            return mu, cov
 
 
 class DeltaGP:
@@ -118,6 +121,11 @@ class DeltaGP:
             'rho':jnp.array(1.0),
             'noise_var':inv_softplus(noise_var)
         }
+        # Calibrating parameters if specified
+        if calibrate:
+            self.p['k_param'] = self.kernel.calibrate(X,Y1 - self.p['rho'] * Y2)
+            self.p['m_param'] = self.mean.calibrate(X, Y1 - self.p['rho'] * Y2)
+            self.calibrate_noise(max_cond = max_cond)
         # Storing the kernel parameters of the GP 
         if kernel_params is not None: 
             assert len(kernel_params.shape) == 1, "Kernel parameters must be a 1D array" 
@@ -133,16 +141,11 @@ class DeltaGP:
         else:
             # Setting mean parameters as all zeros 
             self.p['m_param'] = jnp.zeros(self.mean.p_dim)
-        # Calibrating parameters if specified
-        if calibrate:
-            self.p['k_param'] = self.kernel.calibrate(X,Y1 - self.p['rho'] * Y2)
-            self.p['m_param'] = self.mean.calibrate(X, Y1 - self.p['rho'] * Y2)
-            self.calibrate_noise(max_cond = max_cond)
+
         # Computing L and alpha values 
         self.L = self.get_L(self.p['k_param'], self.p['noise_var'])
         self.alpha = self.get_alpha(self.L, self.p['m_param'], self.p['rho'])
 
-    @jax.jit 
     def calibrate_noise(self, max_cond = 1e5):
         # Get condition number 
         L = self.get_L(self.p['k_param'], self.p['noise_var'])
@@ -153,37 +156,37 @@ class DeltaGP:
         # Printing new noise variance 
         print("Calibrated white noise variance: %.4e" % (softplus(self.p['noise_var'])))
 
-    @jax.jit 
     def set_params(self, p):
         self.p = deepcopy(p)
         self.L = self.get_L(self.p['k_param'], self.p['noise_var'])
         self.alpha = self.get_alpha(self.L, self.p['m_param'], self.p['rho'])
     
-    @jax.jit
     def get_L(self, k_param, noise_var):
         # Form kernel matrix 
         Ktrain = K(self.X, self.X, self.kernel, k_param) + (self.eps + softplus(noise_var)) * jnp.eye(self.X.shape[0])
         # Take cholesky factorization 
         return cholesky(Ktrain, lower=True)
     
-    @jax.jit
     def get_alpha(self, L, m_param, rho):
         # Utilize the scipy implementation of cholesky solve
         return cho_solve((L, True), (self.Y1 - rho * self.Y2) - self.mean.eval(self.X, m_param))
 
-    @jax.jit
-    def predict(self, Xtest, full_cov = True):
+    def predict(self, Xtest, full_cov = False):
         # Form testing kernel matrix 
         Ktest = K(Xtest, self.X, self.kernel, self.p['k_param'])
         # Compute posterior mean 
         mu = (Ktest @ self.alpha + self.mean.eval(Xtest, self.p['m_param'])).ravel()
-        # Computer posterior variance 
-        cov = K(Xtest, Xtest, self.kernel, self.p['k_param']) - Ktest @ cho_solve((self.L, True), Ktest.T)
+        
         # Returning full covariance or diagonal 
         if full_cov:
+            # Computer posterior variance with full testing auxiliary matrix 
+            cov = K(Xtest, Xtest, self.kernel, self.p['k_param']) - Ktest @ cho_solve((self.L, True), Ktest.T)
             return mu, cov 
         else:
-            return mu, jnp.diag(cov)
+            # Computer posterior variance without dense test matrix
+            Kaux = (jax.vmap(jit(lambda x: self.kernel.eval(x, x, self.p['k_param'])))(Xtest)).ravel()
+            cov = Kaux - jnp.diag(Ktest @ cho_solve((self.L, True), Ktest.T))
+            return mu, cov
 
 
 

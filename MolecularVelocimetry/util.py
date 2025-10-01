@@ -4,10 +4,11 @@ from gplib.mf import *   # now absolute import works
 from scipy.interpolate import griddata
 from math import floor 
 import matplotlib.pyplot as plt 
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, PolynomialFeatures
 from sklearn.neighbors import KNeighborsRegressor
-from sklearn.neural_network import MLPRegressor
-from sklearn.ensemble import HistGradientBoostingRegressor
+from scipy.interpolate import Rbf, griddata
+from sklearn.pipeline import make_pipeline
+from sklearn.linear_model import Ridge
 
 # Plot parameters 
 plt.rcParams.update({
@@ -108,26 +109,30 @@ def get_data_dict(target_qoi='U', grid_spacing=0.005):
     
     return scaler, data_dict, ratio, (Xtrain, Ytrain), x_partitions
 
-def generate_features(data_dict, Xtrain, Xtest, n_neighbors = 10):
+def generate_features(data_dict, Xtrain, Xtest, n_neighbors = 10, p=2):
+    
     U_KNN_models = {} 
 
     # Creating features for high-fidelity regression
     train_features = np.copy(Xtrain)
     test_features = np.copy(Xtest)
 
-    for level in range(len(data_dict)-1):
+    # Printing progress 
+    print("Training KNN Models...")
+    for level in tqdm(range(len(data_dict)-1)):
         # Declaring new K Nearest Neighbors Classifier
-        model = KNeighborsRegressor(n_neighbors = n_neighbors, weights = 'distance')
+        model = KNeighborsRegressor(n_neighbors = n_neighbors, weights='distance')
         
-        # Fitting the model to the training data
+        # # Fitting the model to the training data
         model.fit(data_dict[level]['X'], data_dict[level]['Y'])
 
-        # Storing the model in the dictionary
+        # # Storing the model in the dictionary
         U_KNN_models[level] = model
 
-        # Making train and test predictions 
+        # # Making train and test predictions 
         train_pred, test_pred = model.predict(Xtrain), model.predict(Xtest)
 
+        # Appending new predictions onto the train and test features
         train_features = np.hstack((train_features, train_pred.reshape(-1,1)))
         test_features = np.hstack((test_features, test_pred.reshape(-1,1)))
 

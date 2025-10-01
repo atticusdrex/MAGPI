@@ -17,8 +17,6 @@ class RBF(Kernel):
         super().__init__(*args, **kwargs)
         # Storing parameter dimension 
         self.p_dim = 1 + self.input_dim
-        # Kernel parameter constraints 
-        self.constr = lambda params: jnp.maximum(self.eps, params)
     
     def calibrate(self, X, Y):        
         return inv_softplus(self.eps + jnp.concat((jnp.var(Y.ravel()).reshape(1), jnp.var(jnp.diff(Y)) * jnp.ones(self.p_dim-1)), axis=0))
@@ -39,8 +37,6 @@ class NARGP_RBF(Kernel):
         super().__init__(*args, **kwargs)
         # Storing parameter dimension 
         self.p_dim = 2*(1 + self.input_dim)
-        # Kernel parameter constraints 
-        self.constr = lambda params: jnp.maximum(self.eps, params)
         # Making a list of RBF kernels 
         self.kernels = [RBF(*args, **kwargs), RBF(*args, **kwargs), RBF(1, **kwargs)]
     

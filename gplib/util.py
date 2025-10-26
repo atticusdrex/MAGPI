@@ -51,7 +51,7 @@ def create_batches(X, Y, batch_size, shuffle=True):
 
 # Function for greedily choosing the number of inducing inputs 
 def greedy_k_center(X, k, seed=42):
-    np.random.seed(42)
+    np.random.seed(seed)
     N = X.shape[0]
     selected_indices = []
     idx = np.random.randint(N)

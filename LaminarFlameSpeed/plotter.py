@@ -107,7 +107,7 @@ if __name__ == "__main__":
         # Plotting the data 
         plt.subplot(2,2,plot_num+1)
         # Plotting the Hyperkriging predictions with uncertainty estimates
-        plt.plot(scaler.inverse_transform(Xtest)[:,0], hk_mean, color = 'green', label = 'Hyperkriging')
+        plt.plot(scaler.inverse_transform(Xtest)[:,0], hk_mean, color = 'green', label = 'Our Method')
         plt.fill_between(scaler.inverse_transform(Xtest)[:,0], hk_mean-hk_conf, hk_mean + hk_conf, color = 'green', alpha = 0.3)
 
         # Plotting the AR1 predictions with uncertainty estimates

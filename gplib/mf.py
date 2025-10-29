@@ -65,15 +65,12 @@ class Hyperkriging(MFRegressor):
         
         return self.d[level]['model'].predict(test_features, full_cov = full_cov)
     
-    def optimize(self, level, params = ['k_param', 'm_param', 'noise_var'], lr=1e-3, epochs = 1000, beta = 0.9, k = 15):
+    def optimize(self, level, params = ['k_param', 'm_param', 'noise_var'], lr=1e-3, epochs = 1000, beta1 = 0.9, beta2 = 0.999):
         
         # Optimizing lowest-fidelity model 
         if level == 0:
-            optimizer = Momentum(
-                self.d[0]['model'], 
-                neg_mll, beta = beta
-            )
-            optimizer.latin_hypercube_init('k_param', k, min=-50, max = 50)
+            # Creating a model trained on this set of features 
+            optimizer = ADAM(self.d[0]['model'], neg_mll, beta1=beta1, beta2=beta2)
             optimizer.run(lr, epochs, params)
         else:
             features = self.d[level]['X']
@@ -88,11 +85,7 @@ class Hyperkriging(MFRegressor):
             self.d[level]['model'].X = deepcopy(features)
             
             # Creating a model trained on this set of features 
-            optimizer = Momentum(
-                self.d[level]['model'], 
-                neg_mll, beta = beta
-            )
-            optimizer.latin_hypercube_init('k_param', k, min=-50, max = 50)
+            optimizer = ADAM(self.d[level]['model'], neg_mll, beta1=beta1, beta2=beta2)
             optimizer.run(lr, epochs, params)
 
 
@@ -139,17 +132,12 @@ class KennedyOHagan(MFRegressor):
 
         return Ymean, Ycov 
 
-    def optimize(self, level, params = ['k_param', 'm_param', 'rho', 'noise_var'], lr = 1e-3, epochs = 1000, beta = 0.9, k=15):
+    def optimize(self, level, params = ['k_param', 'm_param', 'rho', 'noise_var'], lr = 1e-3, epochs = 1000, beta1 = 0.9, beta2 = 0.999):
         
         # Optimizing lowest-fidelity model 
         if level == 0:
             # Creating a model trained on this set of features 
-            optimizer = Momentum(
-                self.d[0]['model'], 
-                neg_mll, beta = beta
-            )
-            # Running the optimizer 
-            optimizer.latin_hypercube_init('k_param', k, min=-50, max = 50)
+            optimizer = ADAM(self.d[0]['model'], neg_mll, beta1=0.9, beta2=0.999)
             params.remove("rho")
             optimizer.run(lr, epochs, params)
         else:
@@ -159,13 +147,7 @@ class KennedyOHagan(MFRegressor):
                 self.d[sublevel]['model'].Y2 = mean.ravel()
 
             # Creating a model trained on this set of features 
-            optimizer = Momentum(
-                self.d[level]['model'], 
-                delta_neg_mll, beta = beta
-            )
-
-            # Running the optimizer 
-            optimizer.latin_hypercube_init('k_param', k, min=-50, max = 50)
+            optimizer = ADAM(self.d[level]['model'], delta_neg_mll, beta1=0.9, beta2=0.999)
             optimizer.run(lr, epochs, params)
 
 class NARGP(MFRegressor):
@@ -174,7 +156,7 @@ class NARGP(MFRegressor):
         super().__init__(*args, **kwargs)
 
         # Initializing level zero model
-        self.d[0]['model'] = GP(self.d[0]['X'], self.d[0]['Y'], self.kernel, self.mean, noise_var = self.d[0]['noise_var'], epsilon = self.eps, max_cond = max_cond, calibrate=True)
+        self.d[0]['model'] = GP(self.d[0]['X'], self.d[0]['Y'], RBF, self.mean, noise_var = self.d[0]['noise_var'], epsilon = self.eps, max_cond = max_cond, calibrate=True)
 
         # Initializing models 
         for level in range(1, self.K):
@@ -208,16 +190,12 @@ class NARGP(MFRegressor):
         
         return self.d[level]['model'].predict(test_features, full_cov = full_cov)
     
-    def optimize(self, level, params = ['k_param', 'm_param', 'noise_var'], lr = 1e-3, epochs = 1000, beta = 0.9, k = 15):
+    def optimize(self, level, params = ['k_param', 'm_param', 'noise_var'], lr = 1e-3, epochs = 1000, beta1 = 0.9, beta2 = 0.999):
         
         # Optimizing lowest-fidelity model 
         if level == 0:
             # Creating a model trained on this set of features 
-            optimizer = Momentum(
-                self.d[level]['model'], 
-                neg_mll, beta = beta
-            )
-            optimizer.latin_hypercube_init('k_param', k, min=-50, max = 50)
+            optimizer = ADAM(self.d[level]['model'], neg_mll, beta1=beta1, beta2=beta2)
             optimizer.run(lr, epochs, params)
         else:
             features = self.d[level]['X']
@@ -232,11 +210,7 @@ class NARGP(MFRegressor):
             self.d[level]['model'].X = deepcopy(features)
             
             # Creating a model trained on this set of features 
-            optimizer = Momentum(
-                self.d[level]['model'], 
-                neg_mll, beta = beta
-            )
-            optimizer.latin_hypercube_init('k_param', k, min=-50, max = 50)
+            optimizer = ADAM(self.d[level]['model'], neg_mll, beta1=beta1, beta2=beta2)
             optimizer.run(lr, epochs, params)
 
 

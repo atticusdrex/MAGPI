@@ -12,7 +12,7 @@ from sklearn.linear_model import Ridge
 
 # Plot parameters 
 plt.rcParams.update({
-    "font.family": "georgia",
+    "font.family": "serif",
     'text.latex.preamble': r'\\usepackage{amsmath}',
     'mathtext.fontset': 'cm',
 })
@@ -66,7 +66,7 @@ def get_data_dict(target_qoi='U', grid_spacing=0.005):
             'U':U*0.01, # Horizontal component of velocity
             'V':V*0.01, # Vertical component of velocity
             'M':np.log(np.sqrt(U**2 + V**2) + 1e-5), # Computing the velocity magnitude
-            'noise_var':1e-12 # Adding a small noise variance
+            'noise_var':1e-1 # Adding a small noise variance
         }
 
     # Aspect ratio for figures

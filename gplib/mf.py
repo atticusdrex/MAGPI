@@ -1,20 +1,33 @@
 from .gp import * 
 
+"""
+gplib.mf
+-----------
+Multi-fidelity regression wrappers.
+
+This module provides thin wrappers that compose `GP`, `DeltaGP` and
+`SVGP` objects into multi-fidelity models. Supported multi-fidelity
+approaches include Hyperkriging, Kennedy-O'Hagan co-kriging,
+NARGP and a block Cokriging implementation.
+
+Each class expects a `data_dict` where each fidelity level is a dict
+containing keys like `'X'`, `'Y'`, and optional `'noise_var'`.
+"""
+
 # Creating a parent class for the multi-fidelity regressor objects 
 class MFRegressor:
-    """
-    Initialize a multi-fidelity object. 
+    """Base class for multi-fidelity regressors.
 
     Parameters
     ----------
     data_dict : dict
-        The multi-fidelity data dictionary
-    kernel : function
-        A kernel covariance function specifying the Gaussian Process prior functional distribution. 
-    kernel_dim : int 
-        An integer specifying the dimension of the kernel parameters needing to be fed into the kernel function. 
-    jitter : float
-        A floating point number defining how much to regularize the solution with to avoid numerical instability (default = 1e-6).
+        Mapping fidelity level -> dict with at least 'X' and 'Y'.
+    kernel : class
+        Kernel class to instantiate for internal GPs.
+    mean_func : class
+        Mean-function class to instantiate for internal GPs.
+    epsilon : float
+        Jitter added to kernel diagonals for numerical stability.
     """
     def __init__(self, data_dict, kernel, mean_func, epsilon = 1e-8):
         # Storing data dictionary, kernel and kernel base dimension

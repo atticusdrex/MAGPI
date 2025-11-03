@@ -1,10 +1,24 @@
 from .util import * 
 
 
-'''
-Negative Marginal Log Likelihood 
-'''
+"""
+gplib.likelihood
+------------------
+Negative log-likelihood objective functions used for hyperparameter
+training. Each function follows the signature `obj(model, p, ...)` and
+returns a scalar loss value.
+"""
+
 def neg_mll(model, p):
+    """Negative marginal log-likelihood for a standard GP.
+
+    Parameters
+    ----------
+    model : object
+        GP-like object implementing `get_L`, `.Y`, `.X`, `.mean` and `.N`.
+    p : dict
+        Parameter dictionary used to construct the kernel/mean/noise.
+    """
     # Getting cholesky factors and solve linear system
     L = model.get_L(p['k_param'], p['noise_var'])
     Ytilde = model.Y - model.mean.eval(model.X, p['m_param']) 
@@ -14,10 +28,9 @@ def neg_mll(model, p):
     # Return quadratic and log-determinant components
     return 0.5*(quad_term + logdet_term + constant_term)
 
-'''
-Negative Marginal Log Likelihood for DeltaGPs 
-'''
+
 def delta_neg_mll(model, p):
+    """Negative marginal log-likelihood for DeltaGP (difference) models."""
     # Getting cholesky factors and solve linear system
     L = model.get_L(p['k_param'], p['noise_var'])
     # Center the Y vector 
@@ -28,7 +41,9 @@ def delta_neg_mll(model, p):
     # Return quadratic and log-determinant components
     return 0.5*(quad_term + logdet_term + constant_term)
 
+
 def cokriging_neg_mll(model, p):
+    """Negative marginal log-likelihood for block cokriging models."""
     L = model.get_L(p)
     # Centering the training data
     Ytilde = model.Yfull - model.mean_train(p)
@@ -38,7 +53,14 @@ def cokriging_neg_mll(model, p):
     constant_term = model.N_total * jnp.log(2*math.pi)
     return 0.5 * (quad_term + logdet_term + constant_term)
 
+
 def svgp_neg_mll(model, p, N_mc = 25, seed = 42):
+    """Monte-Carlo estimate of the SVGP negative log-likelihood + KL term.
+
+    This objective estimates the expected squared error under the
+    variational posterior and adds the KL divergence between the
+    variational and prior distributions of the inducing variables.
+    """
     # Getting cholesky factors and solve linear system
     L = model.get_L(p['Z'], p['k_param'], p['noise_var'])
     # Forming testing kernel matrices 
@@ -55,8 +77,6 @@ def svgp_neg_mll(model, p, N_mc = 25, seed = 42):
         key1, key2 = random.split(key, num = 2)
         # sampling from variational distribution 
         u = p['q_mu'] + p['q_L'] @ random.normal(key1, shape = (model.M)) 
-        # centering the Y distribution 
-        # Ytilde = u - model.mean.eval(p['Z'], p['m_param']) 
         # computing posterior distribution  
         mu_pos = (Ktest @ cho_solve((L, True), u)).ravel() + model.mean.eval(model.X, p['m_param'])
         # sampling from the posterior 
@@ -80,5 +100,5 @@ def svgp_neg_mll(model, p, N_mc = 25, seed = 42):
     # returning the sum 
     return 0.5*(squared_error + constant_term) + kl_divergence
 
-        
+
 

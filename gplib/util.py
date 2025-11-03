@@ -17,24 +17,47 @@ try:
 except:
     print("64-bit Jax Computation is not available on your CPU.")
 
+
+"""
+gplib.util
+-----------
+Small utility helpers used across the GP wrappers. Functions include
+activation/transform helpers (sigmoid, softplus), kernel batching
+helpers and a KL divergence for multivariate Gaussians parameterized
+by Cholesky factors.
+"""
+
 def sigmoid(x):
+    """Sigmoid activation elementwise: 1 / (1 + exp(-x))."""
     return 1.0 / (1.0 + jnp.exp(-x))
 
 def inv_sigmoid(y):
+    """Inverse sigmoid (logit): maps (0,1) -> R."""
     return jnp.log(y/(1-y))
 
 def softplus(x):
+    """Softplus activation: log(1 + exp(x))."""
     return jnp.log(1.0 + jnp.exp(x))
 
 def inv_softplus(y):
+    """Inverse softplus: maps positive values back to unconstrained space."""
     return jnp.log(jnp.exp(y) - 1.0)
 
 
 def K(X1, X2, kernel, kernel_params):
+    """Compute the full kernel matrix between two point sets.
+
+    Returns an array with shape (len(X1), len(X2)) where each entry is
+    kernel.eval(x,y,kernel_params).
+    """
     return vmap(lambda x: vmap(lambda y: kernel.eval(x, y, kernel_params))(X2))(X1)
 
 # For batching the training data
 def create_batches(X, Y, batch_size, shuffle=True):
+    """Yield minibatches of (X, Y).
+
+    If `shuffle` is True the dataset is shuffled before batching.
+    """
     n_samples = X.shape[0]
     
     if shuffle:
@@ -51,6 +74,10 @@ def create_batches(X, Y, batch_size, shuffle=True):
 
 # Function for greedily choosing the number of inducing inputs 
 def greedy_k_center(X, k, seed=42):
+    """Greedy k-centers selection of inducing inputs.
+
+    Returns a tuple (selected_points, selected_indices).
+    """
     np.random.seed(seed)
     N = X.shape[0]
     selected_indices = []
@@ -69,9 +96,11 @@ def greedy_k_center(X, k, seed=42):
 
 # Special KL-divergence function
 def KL_div(mu_q, L_q, mu_p, L_p):
-    """
-    KL(q(mu_q, L_q) || p(mu_p, L_p))
-    where L_q and L_p are Cholesky factors of the covariances.
+    """KL divergence KL(q || p) for Gaussians parameterized by Cholesky factors.
+
+    Arguments:
+      mu_q, L_q : mean and lower-triangular Cholesky factor for q
+      mu_p, L_p : mean and lower-triangular Cholesky factor for p
     """
     k = mu_q.shape[0]
 

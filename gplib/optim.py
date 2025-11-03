@@ -1,6 +1,26 @@
 from .likelihood import * 
 
+"""
+gplib.optim
+-----------
+Optimizers and initialization helpers for GP hyperparameter training.
+
+Exposes three optimizer wrappers:
+ - Momentum: SGD with momentum and several random initializers
+ - ADAM: Adam optimizer wrapper
+ - LBFGS: jaxopt-backed L-BFGS wrapper
+
+Each optimizer expects a model with a `.p` dict of parameters and a
+`.set_params()` method to apply new parameter values.
+"""
+
 class Momentum:
+    """Momentum-based optimizer with convenient initialization helpers.
+
+    Methods provided include several parameter initializers (latin
+    hypercube, log-normal, Poisson) and a `run` method that performs
+    gradient updates with momentum on the selected parameter keys.
+    """
     def __init__(self, model, objective_func, beta = 0.9, constraints = None):
         # Storing model and objective function
         self.model, self.obj, self.beta = model, objective_func, beta
@@ -155,6 +175,25 @@ class Momentum:
             self.best_loss, self.best_p = best_loss, p
 
     def run(self, lr, epochs, params, p_init = None, verbose=True):
+        """Run momentum-based gradient updates.
+
+        Parameters
+        ----------
+        lr : float
+            Learning rate.
+        epochs : int
+            Number of iterations.
+        params : list
+            List of parameter keys in the model.p dict to update.
+        p_init : dict or None
+            Optional starting parameters.
+        verbose : bool
+            Whether to show a progress bar.
+        Returns
+        -------
+        best_p : dict
+            Best parameter dictionary seen during optimization.
+        """
         # Initializing the velocity dictionary 
         v = {} 
         if p_init is not None: 
@@ -206,6 +245,11 @@ class Momentum:
             
             
 class ADAM:
+    """ADAM optimizer wrapper for model parameter dictionaries.
+
+    Provides a `.run()` method that updates the selected keys in the
+    model's `.p` dictionary using bias-corrected ADAM.
+    """
     def __init__(self, model, objective_func, beta1 = 0.9, beta2 = 0.999, constraints = None):
         # Storing model and objective function
         self.model, self.obj, self.beta1, self.beta2 = model, objective_func, beta1, beta2 
@@ -224,6 +268,11 @@ class ADAM:
         self.constraints = constraints 
 
     def run(self, lr, epochs, params, p_init=None, verbose=True):
+        """Run ADAM updates on selected parameter keys.
+
+        Parameters are the same as `Momentum.run` but this method uses the
+        ADAM update rule (with bias correction).
+        """
         # Initialize moment estimates
         m, s = {}, {}
         if p_init is not None:
@@ -290,15 +339,22 @@ class ADAM:
     
 
 class LBFGS:
+    """L-BFGS optimizer wrapper backed by jaxopt.LBFGS.
+
+    This wrapper minimizes the provided objective function with
+    respect to the model parameter dictionary. The `k_steps` method
+    runs the solver and updates the model on completion.
+    """
     def __init__(self, model, objective_func, max_iter=10000, tol=1e-6, max_stepsize=1e-1, verbose = False):
-        """
-        L-BFGS optimizer wrapper for GP hyperparameter training.
-        
-        Args:
-            model: object with .p (parameters) and .set_params() method
-            objective_func: function(model, p) -> scalar loss
-            max_iter: maximum number of iterations for solver
-            tol: stopping tolerance
+        """Create an L-BFGS solver instance.
+
+        Parameters
+        ----------
+        model : object
+            Object exposing `.p` and `.set_params()`.
+        objective_func : callable
+            Function (model, p) -> scalar loss.
+        max_iter, tol, max_stepsize, verbose : passed to jaxopt.LBFGS
         """
         self.model, self.obj = model, objective_func
 

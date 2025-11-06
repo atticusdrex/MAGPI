@@ -24,7 +24,7 @@ if __name__ == "__main__":
     with open("models/kr.pkl", "rb") as infile:
         kr = pickle.load(infile)   
     # Setting up the plot parameters 
-    plt.figure(figsize=(9,9),dpi = 300)
+    plt.figure(figsize=(10,8),dpi = 300)
     plt.subplot(2,2,1)
 
     # Iterating through the test temps 
@@ -107,7 +107,7 @@ if __name__ == "__main__":
         # Plotting the data 
         plt.subplot(2,2,plot_num+1)
         # Plotting the Hyperkriging predictions with uncertainty estimates
-        plt.plot(scaler.inverse_transform(Xtest)[:,0], hk_mean, color = 'green', label = 'Our Method')
+        plt.plot(scaler.inverse_transform(Xtest)[:,0], hk_mean, color = 'green', label = 'Proposed Method')
         plt.fill_between(scaler.inverse_transform(Xtest)[:,0], hk_mean-hk_conf, hk_mean + hk_conf, color = 'green', alpha = 0.3)
 
         # Plotting the AR1 predictions with uncertainty estimates

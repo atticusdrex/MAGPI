@@ -76,6 +76,11 @@ if __name__ == "__main__":
 
         # Filtering out the high-fidelity data 
         test_inds = (data_dict[4]['X'][:,1] == test_temp)
+        # Saving data to plot
+        if plot_num == 3: 
+            vis_inds = ((data_dict[4]['X'][:,1] <= test_temp) & (data_dict[4]['X'][:,1] > 600))
+            Xvis, Yvis = data_dict[4]['X'][vis_inds,:], data_dict[4]['Y'][vis_inds]
+
         Xtrue, Ytrue = data_dict[4]['X'][test_inds,:], data_dict[4]['Y'][test_inds]
         inds = (data_dict[4]['X'][:,1] <600)
         data_dict[4]['X'], data_dict[4]['Y'] = data_dict[4]['X'][inds,:], data_dict[4]['Y'][inds]
@@ -155,5 +160,51 @@ if __name__ == "__main__":
         print("Kriging:         %.3e &  %.4f &  %.4f \\\\" % (np.sqrt(np.mean(kr_cov + (Yhat - kr_mean)**2)), np.corrcoef(Yhat.ravel(), kr_mean.ravel())[0,1], -neg_mll(kr, kr.p)))
     
     plt.savefig("results/composite.png")
+
+
+    # Plotting a three-dimensional scatterplot of the training and testing high-fidelity data
+    fig = plt.figure(figsize=(9, 5), dpi=250)
+
+    # Define the grid layout: 2 rows × 2 columns
+    # 3D plot occupies subplots (1,3) — i.e., both rows of the first column
+    ax3d = fig.add_subplot(2, 2, (1, 3), projection='3d')
+
+    level = 4
+    X_inv = scaler.inverse_transform(data_dict[level]['X'])
+    Y_exp = jnp.exp(data_dict[level]['Y']).ravel()
+    marker_size = 35
+
+    # --- 3D Scatter Plot ---
+    ax3d.scatter(X_inv[:, 0], X_inv[:, 1], Y_exp, c='red', marker='+', s = marker_size, label='Training Data')
+    ax3d.scatter(Xvis[:, 0], Xvis[:, 1], jnp.exp(Yvis).ravel(), marker='*', c='black', label='Unseen Testing Data')
+
+    ax3d.set_xlabel('Equivalence Ratio, $\phi$')
+    ax3d.set_ylabel('Temperature, $T_0$')
+    ax3d.set_zlabel('LFS (m/s)', rotation='vertical')
+    ax3d.set_title('    LFS vs. Equivalence Ratio & Temperature')
+
+    plt.subplots_adjust(wspace=0.00, hspace=0.55, right=0.95)
+    box = ax3d.get_position()
+    ax3d.set_position([box.x0 - 0.15, box.y0, box.width * 1.15, box.height])
+
+    # --- 2D Marginal Plot 1 (Top Right: subplot 2) ---
+    ax2 = fig.add_subplot(2, 2, 2)
+    ax2.scatter(X_inv[:, 0], Y_exp, c='red', marker='+', s = marker_size, label='Training Data', alpha=0.7)
+    ax2.scatter(Xvis[:, 0], jnp.exp(Yvis).ravel(), c='black', marker='*', label='Testing Data')
+    ax2.set_xlabel('Equivalence Ratio, $\phi$')
+    ax2.set_ylabel('LFS (m/s)')
+    ax2.set_title('LFS vs. Equivalence Ratio')
+
+    # --- 2D Marginal Plot 2 (Bottom Right: subplot 4) ---
+    ax4 = fig.add_subplot(2, 2, 4)
+    ax4.scatter(X_inv[:, 1], Y_exp, c='red', marker='+', s = marker_size, label='Training Data', alpha = 0.7)
+    ax4.scatter(Xvis[:, 1], jnp.exp(Yvis).ravel(), c='black', marker='*', label='Testing Data')
+    ax4.set_xlabel('Temperature, $T_0$')
+    ax4.set_ylabel('LFS (m/s)')
+    ax4.set_title('LFS vs. Temperature')
+    ax4.legend(loc='upper left', fontsize=10)
+
+    # plt.tight_layout()
+    plt.savefig("results/LFSobjective.png")
 
     

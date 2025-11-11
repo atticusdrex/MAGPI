@@ -63,8 +63,8 @@ def get_data_dict(target_qoi='U', grid_spacing=0.005):
         X, U, V = X, U, V = read_data('data/%s' % file)
         data_dict[level] = {
             'X':X, # XY coordinate as inputs to the model
-            'U':U*0.01, # Horizontal component of velocity
-            'V':V*0.01, # Vertical component of velocity
+            'U':U*0.001, # Horizontal component of velocity
+            'V':V*0.001, # Vertical component of velocity
             'M':np.log(np.sqrt(U**2 + V**2) + 1e-5), # Computing the velocity magnitude
             'noise_var':1e-1 # Adding a small noise variance
         }

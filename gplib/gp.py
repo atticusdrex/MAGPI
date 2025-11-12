@@ -335,17 +335,19 @@ class SVGP:
             'q_L':lambda L: jnp.tril(L), # keeping L lower-triangular 
             'Z':lambda Z: jnp.clip(Z, xmin, xmax) # Clip the inducing points to the min and max input vals
         }
-
-    def calibrate_noise(self, max_cond = 1e5):
-        '''Increase white noise until the kernel condition number is acceptable.'''
-        # Get condition number 
+    
+    def calibrate_noise(self, max_cond=1e5):
+        '''Increase white noise variance to lower the kernel condition number.'''
         L = self.get_L(self.p['Z'], self.p['k_param'], self.p['noise_var'])
-        # Increasing noise to lower condition number 
-        while jnp.linalg.cond(L @ L.T) > max_cond:
-            self.p['noise_var'] = inv_softplus(1.1*softplus(self.p['noise_var']))
-            L = self.get_L(self.p['Z'], self.p['k_param'], self.p['noise_var'])
-        # Printing new noise variance 
+        K = L @ L.T
+        cond_num = jnp.linalg.cond(K)
+        lambda_max = jnp.linalg.matrix_norm(K)
+        lambda_min = lambda_max / cond_num
+        max_cond = min(max_cond, cond_num)
+        sigma_opt = (lambda_max - max_cond * lambda_min) / ((max_cond - 1) + self.eps) + self.eps
+        self.p['noise_var'] = inv_softplus(max(softplus(self.p['noise_var']), sigma_opt))
         print("Calibrated white noise variance: %.4e" % (softplus(self.p['noise_var'])))
+
 
     def set_params(self, p):
         '''Set parameters dictionary and recompute Cholesky for inducing kernel.'''

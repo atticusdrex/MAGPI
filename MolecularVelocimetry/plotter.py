@@ -1,0 +1,268 @@
+from util import * 
+
+def hf_plot():
+    # Specifying target qoi and grid spacing 
+    target_qoi, grid_spacing = 'U', 0.005
+
+    # Loading data dictionary
+    scaler, data_dict, ratio, train_tuple, x_partitions = get_data_dict(target_qoi=target_qoi, grid_spacing=grid_spacing) 
+
+    # Extracting high-fidelity training data 
+    Xtrain, Ytrain = train_tuple
+
+    # Storing training and testing data
+    Xtest, Ytest = data_dict[4]['X'], data_dict[4][target_qoi]
+    data_dict[4]['X'], data_dict[4][target_qoi] = Xtrain, Ytrain
+
+    # Visualizing High-Fidelity training data 
+    plt.figure(figsize=(ratio * 4,6), dpi = 300)
+
+    # Interpolating the data to a grid of points (500 partitions)
+    X, Y, Z = to_grid(scaler.inverse_transform(Xtest), Ytest, ratio, X_partitions = 500)
+    plt.pcolormesh(X, Y, Z, cmap = 'inferno')
+
+    temp_X = np.copy(scaler.inverse_transform(Xtest))
+    temp_X[:,1] = -temp_X[:,1]
+    temp_Y = np.copy(Ytest)
+    X, Y, Z = to_grid(temp_X, temp_Y, ratio, X_partitions = 500)
+
+
+    plt.pcolormesh(X, Y, Z, cmap = 'inferno')
+
+    plt.colorbar(label = 'Horizontal Velocity (km/s)')
+
+    plt.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =3.0, color = 'white', label = None, zorder=1)
+    plt.scatter(scaler.inverse_transform(Xtrain)[:,0], scaler.inverse_transform(Xtrain)[:,1], s = 105.0, c = 'white', label = None, marker = 'P', zorder=2)
+    plt.scatter(scaler.inverse_transform(Xtrain)[:,0], scaler.inverse_transform(Xtrain)[:,1], s = 75.0, c = 'black', label = "High-Fidelity Training Data", marker = '+', zorder=2)
+
+    plt.xlim(-0.002, 0.08)
+    plt.ylim(-0.024, 0.024)
+
+    plt.xlabel("X Coordinate (m)")
+    plt.ylabel("Y Coordinate (m)")
+    plt.title("125μm LES Horizontal Velocity Field Simulation")
+    plt.legend(fontsize=15, loc = 'lower right')
+    plt.tight_layout()
+    plt.savefig("results/sample_plot.png")
+
+def comparison_plot():
+    # Specifying target qoi and grid spacing 
+    target_qoi, grid_spacing = 'U', 0.005
+
+    # Loading data dictionary
+    scaler, data_dict, ratio, train_tuple, x_partitions = get_data_dict(target_qoi=target_qoi, grid_spacing=grid_spacing) 
+
+    # Extracting high-fidelity training data 
+    Xtrain, Ytrain = train_tuple
+
+    # Storing training and testing data
+    Xtest, Ytest = data_dict[4]['X'], data_dict[4][target_qoi]
+    data_dict[4]['X'], data_dict[4][target_qoi] = Xtrain, Ytrain
+
+    # Training low-fidelity surrogate models with KNN 
+    train_features, test_features = generate_features(data_dict, Xtrain, Xtest, n_neighbors = 10)
+
+    # Getting the 177micrometer testing predictions 
+    test_pred = test_features[:,-1]
+
+    # Loading and making predictions with the Hyperkriging model 
+    hk_model = GP(train_features, Ytrain, RBF, Zero, noise_var = 2e-3, epsilon = 1e-12, max_cond = 1e5, calibrate=False)
+    with open("models/hk_params.pkl", "rb") as infile:
+        hk_model.set_params(pickle.load(infile))
+    hk_mean, hk_var = hk_model.predict(test_features, full_cov = False) 
+
+    # Loading and making predictions with the Kriging model
+    kr_model = GP(Xtrain, Ytrain, RBF, Zero, noise_var = 2e-3, epsilon = 1e-12, max_cond = 1e5, calibrate=False)
+    with open("models/kr_params.pkl", "rb") as infile:
+        kr_model.set_params(pickle.load(infile))
+    kr_mean, kr_var = kr_model.predict(Xtest, full_cov = False)
+
+    # # Making predictions using the kennedy o'hagan estimator
+    # delta = DeltaGP(Xtrain, Ytrain, train_features[:,-1], RBF, Zero,  max_cond = 1e5, calibrate = False, noise_var = 2e-3, epsilon = 1e-12)
+    # with open("models/koh_params.pkl", "rb") as infile:
+    #     delta.set_params(pickle.load(infile))
+    # delta_mean, _ = delta.predict(Xtest, full_cov = False)
+    # koh_mean = delta.p['rho'] * test_features[:,-1] + delta_mean 
+
+    # # Making predictions using the nargp estimator
+    # nargp = GP(jnp.hstack((Xtrain, train_features[:,-1].reshape(-1,1))), Ytrain, NARGP_RBF, Zero, noise_var = 2e-3, epsilon = 1e-12, max_cond = 1e5, calibrate=False)
+    # with open("models/nargp_params.pkl", "rb") as infile:
+    #     nargp.set_params(pickle.load(infile))
+    # nargp_mean, _ = nargp.predict(jnp.hstack((Xtest, test_features[:,-1].reshape(-1,1))), full_cov=False)
+
+
+    # Creating the figure with a grid of subplots
+    fig, axes = plt.subplots(4, 2, figsize=(8.5*1.5, 6*1.5), dpi=300)
+    ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8 = axes.ravel()
+
+    # # Making the 1,2 axis completely blank
+    # ax2.axis("off")
+
+    # # 125-resolution plot 
+    X, Y, Z_125 = to_grid(scaler.inverse_transform(Xtest), Ytest, ratio, X_partitions = 500)
+    # ax1.pcolormesh(X, Y, Z_125, cmap = 'inferno')
+    # # ax1.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
+    # ax1.scatter(scaler.inverse_transform(Xtrain)[:,0], scaler.inverse_transform(Xtrain)[:,1], s = 105.0, c = 'white', label = None, marker = 'P')
+    # ax1.scatter(scaler.inverse_transform(Xtrain)[:,0], scaler.inverse_transform(Xtrain)[:,1], s = 75.0, c = 'black', label = "High-Fidelity Training Data", marker = '+')
+    # ax1.set_xlim(0.0, 0.08)
+    # ax1.set_ylim(-0.000, 0.0225)
+    # ax1.set_ylabel("Y Coordinate (m)")
+    # ax1.set_title("125μm LES Simulation and Sparse Training Points")
+    # ax1.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    # ax1.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+    # ax1.yaxis.set_major_locator(MaxNLocator(nbins=5))
+    # ax1.legend(fontsize=15, loc = 'upper right')
+
+    # 177 micrometer resolution plot
+    X, Y, Z_177 = to_grid(scaler.inverse_transform(data_dict[3]['X']), data_dict[3][target_qoi], ratio, X_partitions = 500)
+    im2 = ax1.pcolormesh(X, Y, Z_177, cmap = 'inferno')
+    # ax3.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
+    ax1.set_title("177$\mu$m LES Simulation")
+    ax1.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    ax1.set_ylabel("Y Coordinate (m)")
+    ax1.set_xlim(0.0, 0.08)
+    ax1.set_ylim(-0.000, 0.0225)
+    ax1.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+    ax1.yaxis.set_major_locator(MaxNLocator(nbins=5))
+
+    # 177 vs. 125 error plot
+    norm = TwoSlopeNorm(vmin=-0.4, vcenter=0, vmax=0.4)
+    im4 = ax2.pcolormesh(X, Y, Z_177 - Z_125, cmap = 'RdBu', norm=norm)
+    # ax4.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
+    ax2.set_title("177$\mu$m - 125$\mu$m Simulation")
+    ax2.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
+    ax2.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    ax2.set_xlim(0.0, 0.08)
+    ax2.set_ylim(-0.000, 0.0225)
+
+    # 177 KNN approximation
+    X, Y, Z_KNN = to_grid(scaler.inverse_transform(Xtest), test_pred, ratio, X_partitions = 500)
+    ax3.pcolormesh(X, Y, Z_KNN, cmap = 'inferno')
+    # 3x5.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
+    ax3.set_title("KNN Approximation of 177$\mu$m Simulation")
+    ax3.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    ax3.set_ylabel("Y Coordinate (m)")
+    ax3.set_xlim(0.0, 0.08)
+    ax3.set_ylim(-0.000, 0.0225)
+    ax3.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+    ax3.yaxis.set_major_locator(MaxNLocator(nbins=5))
+
+    # 177 vs. 177 KNN error plot
+    ax4.pcolormesh(X, Y, Z_177 - Z_KNN, cmap = 'RdBu', norm=norm)
+    # 4x6.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
+    ax4.set_title("177$\mu$m Simulation - 177$\mu$m KNN Approximation")
+    ax4.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
+    ax4.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    ax4.set_xlim(0.0, 0.08)
+    ax4.set_ylim(-0.000, 0.0225)
+
+    # Hyperkriging Approximation
+    X, Y, Z_hk = to_grid(scaler.inverse_transform(Xtest), hk_mean, ratio, X_partitions = 500)
+    ax5.pcolormesh(X, Y, Z_hk, cmap = 'inferno')
+    # 5x7.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
+    ax5.set_title("Proposed Method Approximation of 125$\mu$m Simulation")
+    ax5.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    ax5.set_ylabel("Y Coordinate (m)")
+    ax5.set_xlim(0.0, 0.08)
+    ax5.set_ylim(-0.000, 0.0225)
+    ax5.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+    ax5.yaxis.set_major_locator(MaxNLocator(nbins=5))
+
+    # Hyperkriging vs. 125 micrometer error plot
+    ax6.pcolormesh(X, Y, Z_hk - Z_125, cmap = 'RdBu', norm=norm)
+    ax6.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
+    ax6.set_title("Proposed Method Prediction - 125$\mu$m Simulation")
+    ax6.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    ax6.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
+    ax6.set_xlim(0.0, 0.08)
+    ax6.set_ylim(-0.000, 0.0225)
+
+    # # Kennedy O'Hagan Approximation
+    # X, Y, Z_koh = to_grid(scaler.inverse_transform(Xtest), koh_mean, ratio, X_partitions = 500)
+    # ax7.pcolormesh(X, Y, Z_koh, cmap = 'inferno')
+    # # 7x7.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
+    # ax7.set_title("Kennedy O'Hagan Approximation of 125$\mu$m Simulation")
+    # ax7.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    # ax7.set_ylabel("Y Coordinate (m)")
+    # ax7.set_xlim(0.0, 0.08)
+    # ax7.set_ylim(-0.000, 0.0225)
+    # ax7.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+    # ax7.yaxis.set_major_locator(MaxNLocator(nbins=5))
+
+    # # Kennedy O'Hagan vs. 125 micrometer error plot
+    # ax8.pcolormesh(X, Y, Z_koh - Z_125, cmap = 'RdBu', norm=norm)
+    # # ax8.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
+    # ax8.set_title("Kennedy O'Hagan Prediction - 125$\mu$m Simulation")
+    # ax8.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    # ax8.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
+    # ax8.set_xlim(0.0, 0.08)
+    # ax8.set_ylim(-0.000, 0.0225)
+
+    # # NARGP Approximation
+    # X, Y, Z_nargp = to_grid(scaler.inverse_transform(Xtest), nargp_mean, ratio, X_partitions = 500)
+    # ax9.pcolormesh(X, Y, Z_nargp, cmap = 'inferno')
+    # # 9x7.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
+    # ax9.set_title("NARGP Approximation of 125$\mu$m Simulation")
+    # ax9.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    # ax9.set_ylabel("Y Coordinate (m)")
+    # ax9.set_xlim(0.0, 0.08)
+    # ax9.set_ylim(-0.000, 0.0225)
+    # ax9.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+    # ax9.yaxis.set_major_locator(MaxNLocator(nbins=5))
+
+    # # NARGP vs. 125 micrometer error plot
+    # ax10.pcolormesh(X, Y, Z_nargp - Z_125, cmap = 'RdBu', norm=norm)
+    # # ax10.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
+    # ax10.set_title("NARGP Prediction - 125$\mu$m Simulation")
+    # ax10.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    # ax10.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
+    # ax10.set_xlim(0.0, 0.08)
+    # ax10.set_ylim(-0.000, 0.0225)
+
+    # Kriging Approximation
+    X, Y, Z_kr = to_grid(scaler.inverse_transform(Xtest), kr_mean, ratio, X_partitions = 500)
+    ax7.pcolormesh(X, Y, Z_kr, cmap = 'inferno')
+    # 7x7.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
+    ax7.set_title("Single-Fidelity GP Approximation of 125$\mu$m Simulation")
+    ax7.set_xlabel("X Coordinate")
+    ax7.set_ylabel("Y Coordinate (m)")
+    ax7.set_xlim(0.0, 0.08)
+    ax7.set_ylim(-0.000, 0.0225)
+    ax7.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+    ax7.yaxis.set_major_locator(MaxNLocator(nbins=5))
+
+    # Kriging vs. 125 micrometer error plot
+    ax8.pcolormesh(X, Y, Z_kr - Z_125, cmap = 'RdBu', norm=norm)
+    # 812.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
+    ax8.set_title("SFGP Prediction - 125$\mu$m Simulation")
+    ax8.set_xlabel("X Coordinate")
+    ax8.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
+    ax8.set_xlim(0.0, 0.08)
+    ax8.set_ylim(-0.000, 0.0225)
+
+    # Shared colorbar for left plots 
+    cbar = fig.colorbar(im2, ax=[ax1, ax3, ax5, ax7], orientation='vertical', pad = 0.2, label = "Horizontal Velocity (km / s)")
+    cbar.ax.tick_params(labelsize=10)
+    cbar.ax.yaxis.label.set_rotation(-90)
+    cbar.ax.yaxis.label.set_fontsize(15)
+    cbar.ax.yaxis.labelpad = 20 
+    pos = cbar.ax.get_position()  # get current position [x0, y0, width, height]
+    cbar.ax.set_position([pos.x0 + 0.01, pos.y0, pos.width*0.5, pos.height])
+
+    # Shared colorbar for right plots 
+    cbar_right = fig.colorbar(im4, ax=[ax2, ax4, ax6, ax8], orientation='vertical', pad = 0.4, label = "Error (km / s)")
+    cbar_right.ax.tick_params(labelsize=10)
+    cbar_right.ax.yaxis.label.set_rotation(-90)
+    cbar_right.ax.yaxis.label.set_fontsize(15)
+    cbar_right.ax.yaxis.labelpad = 20 
+    pos = cbar_right.ax.get_position()  # get current position [x0, y0, width, height]
+    cbar_right.ax.set_position([pos.x0 + 0.07, pos.y0, pos.width*0.5, pos.height])
+
+    fig.subplots_adjust(left=0.05, right=0.90, bottom=0.03, top=0.97)
+    fig.subplots_adjust(wspace=0.3, hspace=0.3)
+    plt.savefig("results/comparison_plot.png")
+
+
+if __name__ == "__main__":
+    # comparison_plot()
+    hf_plot() 

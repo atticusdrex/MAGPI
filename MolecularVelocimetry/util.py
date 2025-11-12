@@ -9,6 +9,10 @@ from sklearn.neighbors import KNeighborsRegressor
 from scipy.interpolate import Rbf, griddata
 from sklearn.pipeline import make_pipeline
 from sklearn.linear_model import Ridge
+from matplotlib.colors import TwoSlopeNorm
+import pickle
+from matplotlib.ticker import FuncFormatter, FormatStrFormatter, MaxNLocator
+
 
 # Plot parameters 
 plt.rcParams.update({
@@ -27,10 +31,10 @@ filenames = [
 ]
 
 # Perform gridded interpolations for comparing levels of fidelity
-def to_grid(Xtest, Ytest, N_partitions=500):
+def to_grid(Xtest, Ytest, ratio, X_partitions=500):
     grid_x, grid_y = np.meshgrid(
-        np.linspace(Xtest[:,0].min(), Xtest[:,0].max(), N_partitions),
-        np.linspace(Xtest[:,1].min(), Xtest[:,1].max(), N_partitions)
+        np.linspace(Xtest[:,0].min(), Xtest[:,0].max(), X_partitions),
+        np.linspace(Xtest[:,1].min(), Xtest[:,1].max(), int(X_partitions / ratio))
     )
 
     grid_z = griddata((Xtest[:,0], Xtest[:,1]), Ytest, (grid_x, grid_y), method='linear')

@@ -138,8 +138,9 @@ class GP:
             return mu, cov
         else:
             Kaux = (jax.vmap(lambda x: self.kernel.eval(x, x, self.p['k_param']))(Xtest)).ravel()
-            cov = Kaux - jnp.diag(Ktest @ cho_solve((self.L, True), Ktest.T))
-            return mu, cov
+            alpha = cho_solve((self.L, True), Ktest.T)   # shape (m, n)
+            cov_diag = Kaux - jnp.sum(Ktest * alpha.T, axis=1)
+            return mu, cov_diag
 
 
 class DeltaGP:
@@ -253,9 +254,10 @@ class DeltaGP:
             return mu, cov 
         else:
             # Computer posterior variance without dense test matrix
-            Kaux = (jax.vmap(jit(lambda x: self.kernel.eval(x, x, self.p['k_param'])))(Xtest)).ravel()
-            cov = Kaux - jnp.diag(Ktest @ cho_solve((self.L, True), Ktest.T))
-            return mu, cov
+            Kaux = (jax.vmap(lambda x: self.kernel.eval(x, x, self.p['k_param']))(Xtest)).ravel()
+            alpha = cho_solve((self.L, True), Ktest.T)   # shape (m, n)
+            cov_diag = Kaux - jnp.sum(Ktest * alpha.T, axis=1)
+            return mu, cov_diag
 
 
 

@@ -175,8 +175,8 @@ if __name__ == "__main__":
     marker_size = 35
 
     # --- 3D Scatter Plot ---
-    ax3d.scatter(X_inv[:, 0], X_inv[:, 1], Y_exp, c='red', marker='+', s = marker_size, label='Training Data')
-    ax3d.scatter(Xvis[:, 0], Xvis[:, 1], jnp.exp(Yvis).ravel(), marker='*', c='black', label='Unseen Testing Data')
+    ax3d.scatter(X_inv[:, 0], X_inv[:, 1], Y_exp, c='black', marker='*', s = marker_size, label='Training Data')
+    ax3d.scatter(Xvis[:, 0], Xvis[:, 1], jnp.exp(Yvis).ravel(), marker='+', c='red', label='Unseen Testing Data')
 
     ax3d.set_xlabel('Equivalence Ratio, $\phi$')
     ax3d.set_ylabel('Temperature, $T_0$')
@@ -189,16 +189,16 @@ if __name__ == "__main__":
 
     # --- 2D Marginal Plot 1 (Top Right: subplot 2) ---
     ax2 = fig.add_subplot(2, 2, 2)
-    ax2.scatter(X_inv[:, 0], Y_exp, c='red', marker='+', s = marker_size, label='Training Data', alpha=0.7)
-    ax2.scatter(Xvis[:, 0], jnp.exp(Yvis).ravel(), c='black', marker='*', label='Testing Data')
+    ax2.scatter(X_inv[:, 0], Y_exp, c='black', marker='*', s = marker_size, label='Training Data', alpha=0.7)
+    ax2.scatter(Xvis[:, 0], jnp.exp(Yvis).ravel(), c='red', marker='+', label='Testing Data')
     ax2.set_xlabel('Equivalence Ratio, $\phi$')
     ax2.set_ylabel('LFS (m/s)')
     ax2.set_title('LFS vs. Equivalence Ratio')
 
     # --- 2D Marginal Plot 2 (Bottom Right: subplot 4) ---
     ax4 = fig.add_subplot(2, 2, 4)
-    ax4.scatter(X_inv[:, 1], Y_exp, c='red', marker='+', s = marker_size, label='Training Data', alpha = 0.7)
-    ax4.scatter(Xvis[:, 1], jnp.exp(Yvis).ravel(), c='black', marker='*', label='Testing Data')
+    ax4.scatter(X_inv[:, 1], Y_exp, c='black', marker='*', s = marker_size, label='Training Data', alpha = 0.7)
+    ax4.scatter(Xvis[:, 1], jnp.exp(Yvis).ravel(), c='red', marker='+', label='Testing Data')
     ax4.set_xlabel('Temperature, $T_0$')
     ax4.set_ylabel('LFS (m/s)')
     ax4.set_title('LFS vs. Temperature')

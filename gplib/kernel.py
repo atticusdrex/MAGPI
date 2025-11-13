@@ -53,6 +53,37 @@ class RBF(Kernel):
         # computing the kernel eval
         return params[0]*jnp.exp(-jnp.sum(h**2 / params[1:]))
     
+# Automatic Relevancy Determination kernel 
+class Laplace(Kernel):
+    """Isotropic RBF kernel with per-dimension lengthscales.
+
+    Parameterization (params) is expected to be a 1D array where
+    params[0] is a signal variance and params[1:] are lengthscales for
+    each input dimension (positive after softplus).
+    """
+    def __init__(self, *args, **kwargs):
+        # Calling super class 
+        super().__init__(*args, **kwargs)
+        # Storing parameter dimension 
+        self.p_dim = 1 + self.input_dim
+    
+    def calibrate(self, X, Y):        
+        """Return a reasonable initial parameter vector from data."""
+        return inv_softplus(self.eps + jnp.concat((jnp.var(Y.ravel()).reshape(1), jnp.var(jnp.diff(Y)) * jnp.ones(self.p_dim-1)), axis=0))
+        
+    # Evaluation function 
+    def eval(self, x, y, params):
+        """Evaluate RBF kernel k(x,y) given raw `params` (unconstrained).
+
+        The function applies `softplus` to `params` to obtain positive
+        variances/lengthscales.
+        """
+        h = (x-y).ravel()
+        # Enforcing positivity and boundedness
+        params = softplus(params)
+        # computing the kernel eval
+        return params[0]*jnp.exp(-jnp.sum(jnp.abs(h) / params[1:]))
+    
 
 # Automatic Relevancy Determination kernel 
 class NARGP_RBF(Kernel):

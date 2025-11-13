@@ -9,6 +9,7 @@ from sklearn.neighbors import KNeighborsRegressor
 from scipy.interpolate import Rbf, griddata
 from sklearn.pipeline import make_pipeline
 from sklearn.linear_model import Ridge
+from sklearn.metrics import mean_squared_error as MSE
 from matplotlib.colors import TwoSlopeNorm
 import pickle
 from matplotlib.ticker import FuncFormatter, FormatStrFormatter, MaxNLocator

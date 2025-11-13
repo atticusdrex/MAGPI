@@ -66,29 +66,29 @@ def comparison_plot():
     test_pred = test_features[:,-1]
 
     # Loading and making predictions with the Hyperkriging model 
-    hk_model = GP(train_features, Ytrain, RBF, Zero, noise_var = 2e-3, epsilon = 1e-12, max_cond = 1e5, calibrate=False)
-    with open("models/hk_params.pkl", "rb") as infile:
-        hk_model.set_params(pickle.load(infile))
+    with open("models/hk.pkl", "rb") as infile:
+        hk_model = pickle.load(infile)
     hk_mean, hk_var = hk_model.predict(test_features, full_cov = False) 
 
     # Loading and making predictions with the Kriging model
-    kr_model = GP(Xtrain, Ytrain, RBF, Zero, noise_var = 2e-3, epsilon = 1e-12, max_cond = 1e5, calibrate=False)
-    with open("models/kr_params.pkl", "rb") as infile:
-        kr_model.set_params(pickle.load(infile))
+    with open("models/kr.pkl", "rb") as infile:
+        kr_model = pickle.load(infile)
     kr_mean, kr_var = kr_model.predict(Xtest, full_cov = False)
 
-    # # Making predictions using the kennedy o'hagan estimator
-    # delta = DeltaGP(Xtrain, Ytrain, train_features[:,-1], RBF, Zero,  max_cond = 1e5, calibrate = False, noise_var = 2e-3, epsilon = 1e-12)
-    # with open("models/koh_params.pkl", "rb") as infile:
-    #     delta.set_params(pickle.load(infile))
-    # delta_mean, _ = delta.predict(Xtest, full_cov = False)
-    # koh_mean = delta.p['rho'] * test_features[:,-1] + delta_mean 
+    # Making predictions using the kennedy o'hagan estimator
+    with open("models/koh.pkl", "rb") as infile:
+        delta=pickle.load(infile)
+    delta_mean, delta_var = delta.predict(Xtest, full_cov = False)
+    koh_mean = delta.p['rho'] * test_features[:,-1] + delta_mean
+    koh_var = delta_var 
 
     # # Making predictions using the nargp estimator
-    # nargp = GP(jnp.hstack((Xtrain, train_features[:,-1].reshape(-1,1))), Ytrain, NARGP_RBF, Zero, noise_var = 2e-3, epsilon = 1e-12, max_cond = 1e5, calibrate=False)
-    # with open("models/nargp_params.pkl", "rb") as infile:
-    #     nargp.set_params(pickle.load(infile))
-    # nargp_mean, _ = nargp.predict(jnp.hstack((Xtest, test_features[:,-1].reshape(-1,1))), full_cov=False)
+    with open("models/nargp.pkl", "rb") as infile:
+        nargp = pickle.load(infile)
+    nargp_mean, nargp_var = nargp.predict(jnp.hstack((Xtest, test_features[:,-1].reshape(-1,1))), full_cov=False)
+
+    # Specifying only the training data within the grid 
+    grid_criterion = (Xtest[:,0] <= (x_partitions-1) * grid_spacing)
 
 
     # Creating the figure with a grid of subplots
@@ -148,9 +148,9 @@ def comparison_plot():
     ax3.yaxis.set_major_locator(MaxNLocator(nbins=5))
 
     # 177 vs. 177 KNN error plot
-    ax4.pcolormesh(X, Y, Z_177 - Z_KNN, cmap = 'RdBu', norm=norm)
+    ax4.pcolormesh(X, Y, Z_KNN - Z_177, cmap = 'RdBu', norm=norm)
     # 4x6.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
-    ax4.set_title("177$\mu$m Simulation - 177$\mu$m KNN Approximation")
+    ax4.set_title("KNN Prediction - 177$\mu$m Simulation")
     ax4.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
     ax4.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
     ax4.set_xlim(0.0, 0.08)
@@ -223,7 +223,7 @@ def comparison_plot():
     X, Y, Z_kr = to_grid(scaler.inverse_transform(Xtest), kr_mean, ratio, X_partitions = 500)
     ax7.pcolormesh(X, Y, Z_kr, cmap = 'inferno')
     # 7x7.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
-    ax7.set_title("Single-Fidelity GP Approximation of 125$\mu$m Simulation")
+    ax7.set_title("Kriging Approximation of 125$\mu$m Simulation")
     ax7.set_xlabel("X Coordinate")
     ax7.set_ylabel("Y Coordinate (m)")
     ax7.set_xlim(0.0, 0.08)
@@ -234,7 +234,7 @@ def comparison_plot():
     # Kriging vs. 125 micrometer error plot
     ax8.pcolormesh(X, Y, Z_kr - Z_125, cmap = 'RdBu', norm=norm)
     # 812.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
-    ax8.set_title("SFGP Prediction - 125$\mu$m Simulation")
+    ax8.set_title("Kriging Prediction - 125$\mu$m Simulation")
     ax8.set_xlabel("X Coordinate")
     ax8.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
     ax8.set_xlim(0.0, 0.08)
@@ -258,11 +258,29 @@ def comparison_plot():
     pos = cbar_right.ax.get_position()  # get current position [x0, y0, width, height]
     cbar_right.ax.set_position([pos.x0 + 0.07, pos.y0, pos.width*0.5, pos.height])
 
-    fig.subplots_adjust(left=0.05, right=0.90, bottom=0.03, top=0.97)
+    fig.subplots_adjust(left=0.05, right=0.90, bottom=0.06, top=0.97)
     fig.subplots_adjust(wspace=0.3, hspace=0.3)
     plt.savefig("results/comparison_plot.png")
 
+    # Computing performance metrics 
+    hk_rmse = jnp.sqrt(jnp.mean(hk_var[grid_criterion]) + jnp.mean((hk_mean[grid_criterion] - Ytest[grid_criterion])**2))
+    koh_rmse = jnp.sqrt(jnp.mean(koh_var[grid_criterion] + (koh_mean[grid_criterion] - Ytest[grid_criterion])**2))
+    nargp_rmse = jnp.sqrt(jnp.mean(nargp_var[grid_criterion] + (nargp_mean[grid_criterion] - Ytest[grid_criterion])**2))
+    kr_rmse = jnp.sqrt(jnp.mean(kr_var[grid_criterion] + (kr_mean[grid_criterion] - Ytest[grid_criterion])**2))
+
+
+    print("Method                     Grid RMSE      Grid R^2   Log ML")
+    print("---------------------------------------------------------------------------")
+    print("Proposed Method        &  %.4e  &  %.4f  &  %.4f \\\\" % (hk_rmse, np.corrcoef(Ytest[grid_criterion], hk_mean[grid_criterion])[0,1], -neg_mll(hk_model, hk_model.p)))
+    print("Kennedy OH             &  %.4e  &  %.4f  &  %.4f \\\\" % (koh_rmse, np.corrcoef(Ytest[grid_criterion], koh_mean[grid_criterion])[0,1], -delta_neg_mll(delta, delta.p)))
+    print("NARGP                  &  %.4e  &  %.4f  &  %.4f \\\\" % (nargp_rmse, np.corrcoef(Ytest[grid_criterion], nargp_mean[grid_criterion])[0,1], -neg_mll(nargp, nargp.p)))
+    print("Kriging                &  %.4e  &  %.4f  &  %.4f \\\\" % (kr_rmse, np.corrcoef(Ytest[grid_criterion], kr_mean[grid_criterion])[0,1], -neg_mll(kr_model, kr_model.p)))
+    print("177$\\mu$m             &  %.4e  &  %.4f  &  -- \\\\ " %  (jnp.sqrt(MSE(Ytest[grid_criterion], test_features[grid_criterion, 5])), np.corrcoef(Ytest[grid_criterion], test_features[grid_criterion, 5])[0,1]))
+    print("250$\\mu$m             &  %.4e  &  %.4f  &  -- \\\\ " %  (jnp.sqrt(MSE(Ytest[grid_criterion], test_features[grid_criterion, 4])), np.corrcoef(Ytest[grid_criterion], test_features[grid_criterion, 4])[0,1]))
+    print("500$\\mu$m             &  %.4e  &  %.4f  &  -- \\\\ " %  (jnp.sqrt(MSE(Ytest[grid_criterion], test_features[grid_criterion, 3])), np.corrcoef(Ytest[grid_criterion], test_features[grid_criterion, 3])[0,1]))
+    print("RANS$\\mu$m            &  %.4e  &  %.4f  &  -- \\\\  \\hline" %  (jnp.sqrt(MSE(Ytest[grid_criterion], test_features[grid_criterion, 2])), np.corrcoef(Ytest[grid_criterion], test_features[grid_criterion, 2])[0,1]))
+
 
 if __name__ == "__main__":
-    # comparison_plot()
-    hf_plot() 
+    comparison_plot()
+    # hf_plot() 

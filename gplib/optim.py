@@ -330,7 +330,6 @@ class ADAM:
                 best_p = deepcopy(p)
 
         # Store the best p as the model parameters
-        print("helo")
         self.model.set_params(best_p)
         self.best_p = best_p
         return best_p

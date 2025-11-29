@@ -1,6 +1,7 @@
 import sys
 sys.path.append("..")   # add parent folder (project/) to Python path
-from gplib.mf import * 
+from jaxgp.mf import * 
+from apak import * 
 import matplotlib.pyplot as plt
 import pickle
 from sklearn.metrics import mean_squared_error as MSE 

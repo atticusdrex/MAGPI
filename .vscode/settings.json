@@ -1,0 +1,4 @@
+{
+    "python.pythonPath": "~/Documents/venv/bin/python",
+    "jupyter.jupyterServerType": "local"
+}

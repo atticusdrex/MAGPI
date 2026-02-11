@@ -10,14 +10,15 @@ from sklearn.linear_model import Ridge
 
 plt.rcParams.update({
     "font.family": "serif",
+    'font.serif': ["Times New Roman"],
     'text.latex.preamble': r'\\usepackage{amsmath}',
     'mathtext.fontset': 'cm',
 })
 
 if __name__ == "__main__":
     # Loading the models 
-    with open("models/hk.pkl", "rb") as infile:
-        hk = pickle.load(infile)
+    with open("models/magpi.pkl", "rb") as infile:
+        magpi = pickle.load(infile)
     with open("models/koh.pkl", "rb") as infile:
         koh = pickle.load(infile)
     with open("models/nargp.pkl", "rb") as infile:
@@ -98,8 +99,8 @@ if __name__ == "__main__":
         for level in data_dict.keys():
             data_dict[level]['noise_var'] = 1e-2
         
-        hk_mean, hk_cov = hk.predict(Xtest, 4, full_cov = False)
-        hk_conf = 1.96 * jnp.sqrt(hk_cov)
+        magpi_mean, magpi_cov = magpi.predict(Xtest, 4, full_cov = False)
+        magpi_conf = 1.96 * jnp.sqrt(magpi_cov)
 
         koh_mean, koh_cov = koh.predict(Xtest, 4, full_cov = False)
         koh_conf = 1.96 * jnp.sqrt(koh_cov)
@@ -112,9 +113,9 @@ if __name__ == "__main__":
 
         # Plotting the data 
         ax = plt.subplot(4,4,4*plot_num+1)
-        # Plotting the Hyperkriging predictions with uncertainty estimates
-        plt.plot(scaler.inverse_transform(Xtest)[:,0], hk_mean, color = 'green', label = 'Proposed Method')
-        plt.fill_between(scaler.inverse_transform(Xtest)[:,0], hk_mean-hk_conf, hk_mean + hk_conf, color = 'green', alpha = 0.3)
+        # Plotting the MAGPI predictions with uncertainty estimates
+        plt.plot(scaler.inverse_transform(Xtest)[:,0], magpi_mean, color = 'green', label = 'Proposed Method')
+        plt.fill_between(scaler.inverse_transform(Xtest)[:,0], magpi_mean-magpi_conf, magpi_mean + magpi_conf, color = 'green', alpha = 0.3)
         # Plotting the Fidelity-3 training data for comparison 
         inds = (scaler.inverse_transform(data_dict[3]['X'])[:,1] == test_temp) 
         Xsim, Ysim = data_dict[3]['X'][inds,:], data_dict[3]['Y'][inds]
@@ -208,10 +209,10 @@ if __name__ == "__main__":
 
         print("Method (%sK)    RMSE         R^2      log MLL" % (test_temp))
         print("--------------------------------------------------")
-        print("Hyperkriging:    %.3e &  %.4f &  %.4f \\\\" % (np.sqrt(np.mean(hk_cov + (Yhat - hk_mean)**2)), np.corrcoef(Yhat.ravel(), hk_mean.ravel())[0,1], -neg_mll(hk.d[4]['model'], hk.d[4]['model'].p)))
-        print("Kennedy O'Hagan: %.3e &  %.4f &  %.4f \\\\" % (np.sqrt(np.mean(koh_cov + (Yhat - koh_mean)**2)), np.corrcoef(Yhat.ravel(), koh_mean.ravel())[0,1], -delta_neg_mll(koh.d[4]['model'], koh.d[4]['model'].p)))
-        print("NARGP:           %.3e &  %.4f &  %.4f \\\\" % (np.sqrt(np.mean(nargp_cov + (Yhat - nargp_mean)**2)), np.corrcoef(Yhat.ravel(), nargp_mean.ravel())[0,1], -neg_mll(nargp.d[4]['model'], nargp.d[4]['model'].p)))
-        print("Kriging:         %.3e &  %.4f &  %.4f \\\\" % (np.sqrt(np.mean(kr_cov + (Yhat - kr_mean)**2)), np.corrcoef(Yhat.ravel(), kr_mean.ravel())[0,1], -neg_mll(kr, kr.p)))
+        print("MAGPI:           %.3e &  %.4f &  %.4f \\\\" % (np.sqrt(np.mean(magpi_cov + (Yhat - magpi_mean)**2)), np.corrcoef(Yhat.ravel(), magpi_mean.ravel())[0,1]**2, -neg_mll(magpi.d[4]['model'], magpi.d[4]['model'].p)))
+        print("Kennedy O'Hagan: %.3e &  %.4f &  %.4f \\\\" % (np.sqrt(np.mean(koh_cov + (Yhat - koh_mean)**2)), np.corrcoef(Yhat.ravel(), koh_mean.ravel())[0,1]**2, -delta_neg_mll(koh.d[4]['model'], koh.d[4]['model'].p)))
+        print("NARGP:           %.3e &  %.4f &  %.4f \\\\" % (np.sqrt(np.mean(nargp_cov + (Yhat - nargp_mean)**2)), np.corrcoef(Yhat.ravel(), nargp_mean.ravel())[0,1]**2, -neg_mll(nargp.d[4]['model'], nargp.d[4]['model'].p)))
+        print("Kriging:         %.3e &  %.4f &  %.4f \\\\" % (np.sqrt(np.mean(kr_cov + (Yhat - kr_mean)**2)), np.corrcoef(Yhat.ravel(), kr_mean.ravel())[0,1]**2, -neg_mll(kr, kr.p)))
     
     fig.supylabel("Log Laminar Flame Speed - log(m/s)", fontsize=16)
     fig.suptitle("Laminar Flame Speed Predictions at Various Temperatures", fontsize=18)

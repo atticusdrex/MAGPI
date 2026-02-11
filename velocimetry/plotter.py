@@ -1,5 +1,12 @@
 from util import * 
 
+plt.rcParams.update({
+    "font.family": "serif",
+    'font.serif': ["Times New Roman"],
+    'text.latex.preamble': r'\\usepackage{amsmath}',
+    'mathtext.fontset': 'cm',
+})
+
 def hf_plot():
     # Specifying target qoi and grid spacing 
     target_qoi, grid_spacing = 'U', 0.005
@@ -15,35 +22,38 @@ def hf_plot():
     data_dict[4]['X'], data_dict[4][target_qoi] = Xtrain, Ytrain
 
     # Visualizing High-Fidelity training data 
-    plt.figure(figsize=(ratio * 4,6), dpi = 300)
+    with plt.rc_context({"font.size": 11}):
+        plt.figure(figsize=(8.5, 2.5), dpi = 300)
 
-    # Interpolating the data to a grid of points (500 partitions)
-    X, Y, Z = to_grid(scaler.inverse_transform(Xtest), Ytest, ratio, X_partitions = 500)
-    plt.pcolormesh(X, Y, Z, cmap = 'inferno')
+        # Interpolating the data to a grid of points (500 partitions)
+        X, Y, Z = to_grid(scaler.inverse_transform(Xtest), Ytest, ratio, X_partitions = 500)
+        plt.pcolormesh(X, Y, Z, cmap = 'inferno')
 
-    temp_X = np.copy(scaler.inverse_transform(Xtest))
-    temp_X[:,1] = -temp_X[:,1]
-    temp_Y = np.copy(Ytest)
-    X, Y, Z = to_grid(temp_X, temp_Y, ratio, X_partitions = 500)
+        # Plotting the lower half of the mesh
+        # temp_X = np.copy(scaler.inverse_transform(Xtest))
+        # temp_X[:,1] = -temp_X[:,1]
+        # temp_Y = np.copy(Ytest)
+        # X, Y, Z = to_grid(temp_X, temp_Y, ratio, X_partitions = 500)
+        # plt.pcolormesh(X, Y, Z, cmap = 'inferno')
 
+        cbar = plt.colorbar(label = 'Horizontal Velocity (km/s)')
+        cbar.ax.yaxis.label.set_rotation(-90)
+        cbar.ax.yaxis.labelpad = 20
+        cbar.ax.tick_params(labelsize=10)
 
-    plt.pcolormesh(X, Y, Z, cmap = 'inferno')
+        # plt.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =3.0, color = 'white', label = None, zorder=1)
+        plt.scatter(scaler.inverse_transform(Xtrain)[:,0], scaler.inverse_transform(Xtrain)[:,1], s = 105.0, c = 'white', label = None, marker = 'P', zorder=2)
+        plt.scatter(scaler.inverse_transform(Xtrain)[:,0], scaler.inverse_transform(Xtrain)[:,1], s = 75.0, c = 'black', label = "High-Fidelity Training Data", marker = '+', zorder=2)
 
-    plt.colorbar(label = 'Horizontal Velocity (km/s)')
+        plt.xlim(-0.0, 0.08)
+        plt.ylim(-0.0, 0.0225)
 
-    plt.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =3.0, color = 'white', label = None, zorder=1)
-    plt.scatter(scaler.inverse_transform(Xtrain)[:,0], scaler.inverse_transform(Xtrain)[:,1], s = 105.0, c = 'white', label = None, marker = 'P', zorder=2)
-    plt.scatter(scaler.inverse_transform(Xtrain)[:,0], scaler.inverse_transform(Xtrain)[:,1], s = 75.0, c = 'black', label = "High-Fidelity Training Data", marker = '+', zorder=2)
-
-    plt.xlim(-0.002, 0.08)
-    plt.ylim(-0.024, 0.024)
-
-    plt.xlabel("X Coordinate (m)")
-    plt.ylabel("Y Coordinate (m)")
-    plt.title("125μm LES Horizontal Velocity Field Simulation")
-    plt.legend(fontsize=15, loc = 'lower right')
-    plt.tight_layout()
-    plt.savefig("results/sample_plot.png")
+        plt.xlabel("X Coordinate (m)")
+        plt.ylabel("Y Coordinate (m)")
+        plt.title("125μm LES Horizontal Velocity Field Simulation", fontsize=11)
+        plt.legend(fontsize=11, loc = 'upper right')
+        plt.tight_layout()
+        plt.savefig("results/sample_plot.png")
 
 def comparison_plot():
     # Specifying target qoi and grid spacing 
@@ -66,9 +76,9 @@ def comparison_plot():
     test_pred = test_features[:,-1]
 
     # Loading and making predictions with the Hyperkriging model 
-    with open("models/hk.pkl", "rb") as infile:
-        hk_model = pickle.load(infile)
-    hk_mean, hk_var = hk_model.predict(test_features, full_cov = False) 
+    with open("models/magpi.pkl", "rb") as infile:
+        magpi_model = pickle.load(infile)
+    magpi_mean, magpi_var = magpi_model.predict(test_features, full_cov = False) 
 
     # Loading and making predictions with the Kriging model
     with open("models/kr.pkl", "rb") as infile:
@@ -157,7 +167,7 @@ def comparison_plot():
     ax4.set_ylim(-0.000, 0.0225)
 
     # Hyperkriging Approximation
-    X, Y, Z_hk = to_grid(scaler.inverse_transform(Xtest), hk_mean, ratio, X_partitions = 500)
+    X, Y, Z_hk = to_grid(scaler.inverse_transform(Xtest), magpi_mean, ratio, X_partitions = 500)
     ax5.pcolormesh(X, Y, Z_hk, cmap = 'inferno')
     # 5x7.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
     ax5.set_title("Proposed Method Approximation of 125$\mu$m Simulation")
@@ -263,7 +273,7 @@ def comparison_plot():
     plt.savefig("results/comparison_plot.png")
 
     # Computing performance metrics 
-    hk_rmse = jnp.sqrt(jnp.mean(hk_var[grid_criterion]) + jnp.mean((hk_mean[grid_criterion] - Ytest[grid_criterion])**2))
+    magpi_rmse = jnp.sqrt(jnp.mean(magpi_var[grid_criterion]) + jnp.mean((magpi_mean[grid_criterion] - Ytest[grid_criterion])**2))
     koh_rmse = jnp.sqrt(jnp.mean(koh_var[grid_criterion] + (koh_mean[grid_criterion] - Ytest[grid_criterion])**2))
     nargp_rmse = jnp.sqrt(jnp.mean(nargp_var[grid_criterion] + (nargp_mean[grid_criterion] - Ytest[grid_criterion])**2))
     kr_rmse = jnp.sqrt(jnp.mean(kr_var[grid_criterion] + (kr_mean[grid_criterion] - Ytest[grid_criterion])**2))
@@ -271,16 +281,16 @@ def comparison_plot():
 
     print("Method                     Grid RMSE      Grid R^2   Log ML")
     print("---------------------------------------------------------------------------")
-    print("Proposed Method        &  %.4e  &  %.4f  &  %.4f \\\\" % (hk_rmse, np.corrcoef(Ytest[grid_criterion], hk_mean[grid_criterion])[0,1], -neg_mll(hk_model, hk_model.p)))
-    print("Kennedy OH             &  %.4e  &  %.4f  &  %.4f \\\\" % (koh_rmse, np.corrcoef(Ytest[grid_criterion], koh_mean[grid_criterion])[0,1], -delta_neg_mll(delta, delta.p)))
-    print("NARGP                  &  %.4e  &  %.4f  &  %.4f \\\\" % (nargp_rmse, np.corrcoef(Ytest[grid_criterion], nargp_mean[grid_criterion])[0,1], -neg_mll(nargp, nargp.p)))
-    print("Kriging                &  %.4e  &  %.4f  &  %.4f \\\\" % (kr_rmse, np.corrcoef(Ytest[grid_criterion], kr_mean[grid_criterion])[0,1], -neg_mll(kr_model, kr_model.p)))
-    print("177$\\mu$m             &  %.4e  &  %.4f  &  -- \\\\ " %  (jnp.sqrt(MSE(Ytest[grid_criterion], test_features[grid_criterion, 5])), np.corrcoef(Ytest[grid_criterion], test_features[grid_criterion, 5])[0,1]))
-    print("250$\\mu$m             &  %.4e  &  %.4f  &  -- \\\\ " %  (jnp.sqrt(MSE(Ytest[grid_criterion], test_features[grid_criterion, 4])), np.corrcoef(Ytest[grid_criterion], test_features[grid_criterion, 4])[0,1]))
-    print("500$\\mu$m             &  %.4e  &  %.4f  &  -- \\\\ " %  (jnp.sqrt(MSE(Ytest[grid_criterion], test_features[grid_criterion, 3])), np.corrcoef(Ytest[grid_criterion], test_features[grid_criterion, 3])[0,1]))
-    print("RANS$\\mu$m            &  %.4e  &  %.4f  &  -- \\\\  \\hline" %  (jnp.sqrt(MSE(Ytest[grid_criterion], test_features[grid_criterion, 2])), np.corrcoef(Ytest[grid_criterion], test_features[grid_criterion, 2])[0,1]))
+    print("Proposed Method        &  %.4e  &  %.4f  &  %.4f \\\\" % (magpi_rmse, np.corrcoef(Ytest[grid_criterion], magpi_mean[grid_criterion])[0,1]**2, -neg_mll(magpi_model, magpi_model.p)))
+    print("Kennedy OH             &  %.4e  &  %.4f  &  %.4f \\\\" % (koh_rmse, np.corrcoef(Ytest[grid_criterion], koh_mean[grid_criterion])[0,1]**2, -delta_neg_mll(delta, delta.p)))
+    print("NARGP                  &  %.4e  &  %.4f  &  %.4f \\\\" % (nargp_rmse, np.corrcoef(Ytest[grid_criterion], nargp_mean[grid_criterion])[0,1]**2, -neg_mll(nargp, nargp.p)))
+    print("Kriging                &  %.4e  &  %.4f  &  %.4f \\\\" % (kr_rmse, np.corrcoef(Ytest[grid_criterion], kr_mean[grid_criterion])[0,1]**2, -neg_mll(kr_model, kr_model.p)))
+    print("177$\\mu$m             &  %.4e  &  %.4f  &  -- \\\\ " %  (jnp.sqrt(MSE(Ytest[grid_criterion], test_features[grid_criterion, 5])), np.corrcoef(Ytest[grid_criterion], test_features[grid_criterion, 5])[0,1]**2))
+    print("250$\\mu$m             &  %.4e  &  %.4f  &  -- \\\\ " %  (jnp.sqrt(MSE(Ytest[grid_criterion], test_features[grid_criterion, 4])), np.corrcoef(Ytest[grid_criterion], test_features[grid_criterion, 4])[0,1]**2))
+    print("500$\\mu$m             &  %.4e  &  %.4f  &  -- \\\\ " %  (jnp.sqrt(MSE(Ytest[grid_criterion], test_features[grid_criterion, 3])), np.corrcoef(Ytest[grid_criterion], test_features[grid_criterion, 3])[0,1]**2))
+    print("RANS$\\mu$m            &  %.4e  &  %.4f  &  -- \\\\  \\hline" %  (jnp.sqrt(MSE(Ytest[grid_criterion], test_features[grid_criterion, 2])), np.corrcoef(Ytest[grid_criterion], test_features[grid_criterion, 2])[0,1]**2))
 
 
 if __name__ == "__main__":
     comparison_plot()
-    # hf_plot() 
+    hf_plot() 

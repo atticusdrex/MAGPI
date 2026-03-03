@@ -86,7 +86,7 @@ print(np.corrcoef(funcs[0](Xtest).ravel(), funcs[1](Xtest.ravel()))[0,1])
 print(np.corrcoef(funcs[0](Xtest).ravel(), funcs[2](Xtest.ravel()))[0,1])
 
 # Setting number of training steps for each fidelity
-n1, n2, n3 = 2500, 5000, 10000
+n1, n2, n3 = 2500, 10000, 20000
 
 # Training GP-surrogate for lowest level of fidelity 
 print("\nTraining MAGPI model...")
@@ -96,9 +96,9 @@ magpi = MAGPI(
     data_dict, RBF, Linear, max_cond = 1e5, epsilon = 1e-12
 )
 
-magpi.optimize(0, params = ['k_param', 'm_param', 'noise_var'], lr = 1e-1, epochs = n1, beta1 = 0.9, beta2=0.999)
-magpi.optimize(1, params = ['k_param', 'm_param', 'noise_var'], lr = 1e-1, epochs = n2, beta1 = 0.9, beta2=0.999)
-magpi.optimize(2, params = ['k_param', 'm_param', 'noise_var'], lr = 1e-1, epochs = n3, beta1 = 0.9, beta2=0.999)
+magpi.optimize(0, params = ['k_param', 'm_param', 'noise_var'], lr = 2e-1, epochs = n1, beta1 = 0.9, beta2=0.999)
+magpi.optimize(1, params = ['k_param', 'm_param', 'noise_var'], lr = 2e-1, epochs = n2, beta1 = 0.9, beta2=0.999)
+magpi.optimize(2, params = ['k_param', 'm_param', 'noise_var'], lr = 2e-1, epochs = n3, beta1 = 0.9, beta2=0.999)
 
 # Declaring and training Kennedy O'Hagan model 
 print("\nTraining Kennedy O'Hagan model...")
@@ -106,9 +106,9 @@ koh = KennedyOHagan(
     data_dict, RBF, Linear, max_cond = 1e5, epsilon = 1e-12
 )
 
-koh.optimize(0, params = ['k_param', 'm_param', 'rho', 'noise_var'], lr = 1e-1, epochs = n1, beta1 = 0.9, beta2=0.999)
-koh.optimize(1, params = ['k_param', 'm_param', 'rho', 'noise_var'], lr = 1e-1, epochs = n2, beta1 = 0.9, beta2=0.999)
-koh.optimize(2, params = ['k_param', 'm_param', 'rho', 'noise_var'], lr = 1e-1, epochs = n3, beta1 = 0.9, beta2=0.999)
+koh.optimize(0, params = ['k_param', 'm_param', 'rho', 'noise_var'], lr = 2e-1, epochs = n1, beta1 = 0.9, beta2=0.999)
+koh.optimize(1, params = ['k_param', 'm_param', 'rho', 'noise_var'], lr = 2e-1, epochs = n2, beta1 = 0.9, beta2=0.999)
+koh.optimize(2, params = ['k_param', 'm_param', 'rho', 'noise_var'], lr = 2e-1, epochs = n3, beta1 = 0.9, beta2=0.999)
 
 # Declaring and training NARGP model 
 print("\nTraining NARGP model...")
@@ -116,9 +116,9 @@ nargp = NARGP(
     data_dict, NARGP_RBF, Linear, max_cond = 1e5, epsilon = 1e-12
 )
 
-nargp.optimize(0, params = ['k_param', 'm_param', 'noise_var'], lr = 1e-1, epochs = n1, beta1 = 0.9, beta2=0.999)
-nargp.optimize(1, params = ['k_param', 'm_param', 'noise_var'], lr = 1e-1, epochs = n2, beta1 = 0.9, beta2=0.999)
-nargp.optimize(2, params = ['k_param', 'm_param', 'noise_var'], lr = 1e-1, epochs = n3, beta1 = 0.9, beta2=0.999)
+nargp.optimize(0, params = ['k_param', 'm_param', 'noise_var'], lr = 2e-1, epochs = n1, beta1 = 0.9, beta2=0.999)
+nargp.optimize(1, params = ['k_param', 'm_param', 'noise_var'], lr = 2e-1, epochs = n2, beta1 = 0.9, beta2=0.999)
+nargp.optimize(2, params = ['k_param', 'm_param', 'noise_var'], lr = 2e-1, epochs = n3, beta1 = 0.9, beta2=0.999)
 
 
 
@@ -141,16 +141,16 @@ if True:
 
 # Making predictions with each model 
 magpi_mean, magpi_cov = magpi.predict(Xtest, 2, full_cov = False)
-magpi_conf = 1.96 * jnp.sqrt(magpi_cov)
+magpi_conf = 2.00 * jnp.sqrt(magpi_cov)
 
 koh_mean, koh_cov = koh.predict(Xtest, 2, full_cov = False)
-koh_conf = 1.96 * jnp.sqrt(koh_cov)
+koh_conf = 2.00 * jnp.sqrt(koh_cov)
 
 nargp_mean, nargp_cov = nargp.predict(Xtest, 2, full_cov = False)
-nargp_conf = 1.96 * jnp.sqrt(nargp_cov)
+nargp_conf = 2.00 * jnp.sqrt(nargp_cov)
 
 kr_mean, kr_cov = kr_model.predict(Xtest, full_cov = False) 
-kr_conf = 1.96 * np.sqrt(kr_cov)
+kr_conf = 2.00 * np.sqrt(kr_cov)
 
 plt.figure(figsize=(10,6.67),dpi = 400)
 plt.subplot(2,2,1)
@@ -201,7 +201,7 @@ from sklearn.metrics import mean_squared_error as MSE
 Ytest = funcs[0](Xtest)
 print("Method           RMSE         R^2      log MLL")
 print("--------------------------------------------------")
-print("MAGPI:           %.3e    %.4f    %.4f" % (np.sqrt(MSE(Ytest, magpi_mean)), np.corrcoef(Ytest.ravel(), magpi_mean.ravel())[0,1]**2, -neg_mll(magpi.d[2]['model'], magpi.d[2]['model'].p)))
-print("Kennedy O'Hagan: %.3e    %.4f    %.4f" % (np.sqrt(MSE(Ytest, koh_mean)), np.corrcoef(Ytest.ravel(), koh_mean.ravel())[0,1]**2, -delta_neg_mll(koh.d[2]['model'], koh.d[2]['model'].p)))
-print("NARGP:           %.3e    %.4f    %.4f" % (np.sqrt(MSE(Ytest, nargp_mean)), np.corrcoef(Ytest.ravel(), nargp_mean.ravel())[0,1]**2, -neg_mll(nargp.d[2]['model'], nargp.d[2]['model'].p)))
-print("Kriging:         %.3e    %.4f    %.4f" % (np.sqrt(MSE(Ytest, kr_mean)), np.corrcoef(Ytest.ravel(), kr_mean.ravel())[0,1]**2, -neg_mll(kr_model, kr_model.p)))
+print("Proposed Method           \\mathbf{%.3e}   & \\mathbf{%.4f}  &  \\mathbf{%.4f} \\ \\" % (np.sqrt(MSE(Ytest, magpi_mean)), np.corrcoef(Ytest.ravel(), magpi_mean.ravel())[0,1]**2, -neg_mll(magpi.d[2]['model'], magpi.d[2]['model'].p)))
+print("Kennedy O'Hagan           %.3e   & %.4f  &  %.4f \\ \\" % (np.sqrt(MSE(Ytest, koh_mean)), np.corrcoef(Ytest.ravel(), koh_mean.ravel())[0,1]**2, -delta_neg_mll(koh.d[2]['model'], koh.d[2]['model'].p)))
+print("NARGP                     %.3e   & %.4f  &  %.4f \\ \\" % (np.sqrt(MSE(Ytest, nargp_mean)), np.corrcoef(Ytest.ravel(), nargp_mean.ravel())[0,1]**2, -neg_mll(nargp.d[2]['model'], nargp.d[2]['model'].p)))
+print("Kriging                   %.3e   & %.4f  &  %.4f \\ \\" % (np.sqrt(MSE(Ytest, kr_mean)), np.corrcoef(Ytest.ravel(), kr_mean.ravel())[0,1]**2, -neg_mll(kr_model, kr_model.p)))

@@ -100,16 +100,16 @@ if __name__ == "__main__":
             data_dict[level]['noise_var'] = 1e-2
         
         magpi_mean, magpi_cov = magpi.predict(Xtest, 4, full_cov = False)
-        magpi_conf = 1.96 * jnp.sqrt(magpi_cov)
+        magpi_conf = 2.00 * jnp.sqrt(magpi_cov)
 
         koh_mean, koh_cov = koh.predict(Xtest, 4, full_cov = False)
-        koh_conf = 1.96 * jnp.sqrt(koh_cov)
+        koh_conf = 2.00 * jnp.sqrt(koh_cov)
 
         nargp_mean, nargp_cov = nargp.predict(Xtest, 4, full_cov = False)
-        nargp_conf = 1.96 * jnp.sqrt(nargp_cov)
+        nargp_conf = 2.00 * jnp.sqrt(nargp_cov)
 
         kr_mean, kr_cov = kr.predict(Xtest, full_cov = False) 
-        kr_conf = 1.96 * np.sqrt(kr_cov)
+        kr_conf = 2.00 * np.sqrt(kr_cov)
 
         # Plotting the data 
         ax = plt.subplot(4,4,4*plot_num+1)

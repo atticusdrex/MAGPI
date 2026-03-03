@@ -234,7 +234,7 @@ def comparison_plot():
     ax7.pcolormesh(X, Y, Z_kr, cmap = 'inferno')
     # 7x7.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
     ax7.set_title("Kriging Approximation of 125$\mu$m Simulation")
-    ax7.set_xlabel("X Coordinate")
+    ax7.set_xlabel("X Coordinate (m)")
     ax7.set_ylabel("Y Coordinate (m)")
     ax7.set_xlim(0.0, 0.08)
     ax7.set_ylim(-0.000, 0.0225)
@@ -245,7 +245,7 @@ def comparison_plot():
     ax8.pcolormesh(X, Y, Z_kr - Z_125, cmap = 'RdBu', norm=norm)
     # 812.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
     ax8.set_title("Kriging Prediction - 125$\mu$m Simulation")
-    ax8.set_xlabel("X Coordinate")
+    ax8.set_xlabel("X Coordinate (m)")
     ax8.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
     ax8.set_xlim(0.0, 0.08)
     ax8.set_ylim(-0.000, 0.0225)
@@ -290,7 +290,112 @@ def comparison_plot():
     print("500$\\mu$m             &  %.4e  &  %.4f  &  -- \\\\ " %  (jnp.sqrt(MSE(Ytest[grid_criterion], test_features[grid_criterion, 3])), np.corrcoef(Ytest[grid_criterion], test_features[grid_criterion, 3])[0,1]**2))
     print("RANS$\\mu$m            &  %.4e  &  %.4f  &  -- \\\\  \\hline" %  (jnp.sqrt(MSE(Ytest[grid_criterion], test_features[grid_criterion, 2])), np.corrcoef(Ytest[grid_criterion], test_features[grid_criterion, 2])[0,1]**2))
 
+def validation_plot():
+    # Specifying target qoi and grid spacing 
+    target_qoi, grid_spacing = 'U', 0.005
+
+    # Loading data dictionary
+    scaler, data_dict, ratio, train_tuple, x_partitions = get_data_dict(target_qoi=target_qoi, grid_spacing=grid_spacing) 
+
+    # Extracting high-fidelity training data 
+    Xtrain, Ytrain = train_tuple
+
+    # Storing training and testing data
+    Xtest, Ytest = data_dict[4]['X'], data_dict[4][target_qoi]
+    data_dict[4]['X'], data_dict[4][target_qoi] = Xtrain, Ytrain
+
+    # Training low-fidelity surrogate models with KNN 
+    train_features, test_features = generate_features(data_dict, Xtrain, Xtest, n_neighbors = 10)
+
+    # Loading and making predictions with the Hyperkriging model 
+    with open("models/magpi.pkl", "rb") as infile:
+        magpi_model = pickle.load(infile)
+    magpi_mean, magpi_var = magpi_model.predict(test_features, full_cov = False) 
+
+    # Specifying only the training data within the grid 
+    grid_criterion = (Xtest[:,0] <= (x_partitions-1) * grid_spacing)
+
+
+    # Creating the figure with a grid of subplots
+    fig, axes = plt.subplots(2,1, figsize=(8.5*1.5, 4*1.5), dpi=300)
+    ax1, ax2 = axes.ravel()
+
+    # # 125-resolution plot 
+    X, Y, Z_125 = to_grid(scaler.inverse_transform(Xtest), Ytest, ratio, X_partitions = 500)
+
+    # 177 vs. 125 error plot
+    norm = TwoSlopeNorm(vmin=-0.2, vcenter=0, vmax=0.2)
+
+    # Hyperkriging Approximation
+    X, Y, Z_hk = to_grid(scaler.inverse_transform(Xtest), magpi_mean, ratio, X_partitions = 500)
+    _, _, Z_hk_var = to_grid(scaler.inverse_transform(Xtest), magpi_var, ratio, X_partitions = 500)
+    # Hyperkriging vs. 125 micrometer error plot
+    im1 = ax1.pcolormesh(X, Y, (Z_hk - Z_125), cmap = 'RdBu', norm=norm)
+    ax1.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
+    ax1.set_title("Error between Proposed Method and High-Fidelity (125$\mu$m)", fontsize=15)
+    ax1.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    ax1.set_ylabel("Y Coordinate (m)")
+    ax1.set_xlim(0.0, 0.08)
+    ax1.set_ylim(-0.000, 0.0225)
+    cbar_left = fig.colorbar(im1, ax=[ax1], orientation='vertical', pad = 0.2, label = "Model Error (km / s)")
+    cbar_left.ax.tick_params(labelsize=10)
+    cbar_left.ax.yaxis.label.set_rotation(-90)
+    cbar_left.ax.yaxis.label.set_fontsize(15)
+    cbar_left.ax.yaxis.labelpad = 20
+    pos = cbar_left.ax.get_position()  # get current position [x0, y0, width, height]
+    cbar_left.ax.set_position([pos.x0 + 0.13, pos.y0+0.02, pos.width*0.5, pos.height])
+
+    # Hyperkriging vs. 125 micrometer error plot
+    im2 = ax2.pcolormesh(X, Y, jnp.sqrt(Z_hk_var), cmap = 'Oranges')
+    ax2.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
+    ax2.set_title("Predictive Uncertainty of Proposed Method", fontsize=15)
+    ax2.set_xlabel("X Coordinate (m)")
+    ax2.set_ylabel("Y Coordinate (m)")
+    ax2.set_xlim(0.0, 0.08)
+    ax2.set_ylim(-0.000, 0.0225)
+
+    cbar_right = fig.colorbar(im2, ax=[ax2], orientation='vertical', pad = 0.2, label = "Model Uncertainty (km / s)")
+    cbar_right.ax.tick_params(labelsize=10)
+    cbar_right.ax.yaxis.label.set_rotation(-90)
+    cbar_right.ax.yaxis.label.set_fontsize(15)
+    cbar_right.ax.yaxis.labelpad = 20 
+    pos = cbar_right.ax.get_position()  # get current position [x0, y0, width, height]
+    cbar_right.ax.set_position([pos.x0 + 0.13, pos.y0-0.04, pos.width*0.5, pos.height])
+
+    # # Confidence Interval Plot
+    # from matplotlib.colors import ListedColormap, BoundaryNorm 
+    # cmap = ListedColormap(['white', 'green'])
+    # norm = BoundaryNorm([-0.5, 0.5, 1.5], cmap.N)
+    # Z_correct = np.zeros_like(Z_hk)
+    # Z_hk_conf = jnp.sqrt(Z_hk_var)
+    # Z_correct[(Z_125 >= Z_hk - 2.58 * Z_hk_conf) & (Z_125 <= Z_hk + 2.58 * Z_hk_conf)] = 1
+    # im3 = ax3.pcolormesh(X, Y, Z_correct, cmap = cmap, norm = norm)
+    # ax3.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
+    # ax3.set_title("True Flow Field within 99% Confidence Interval", fontsize=15)
+    # ax3.set_xlabel("X Coordinate (m)")
+    # ax3.set_ylabel("Y Coordinate (m)")
+    # ax3.set_xlim(0.0, 0.08)
+    # ax3.set_ylim(-0.000, 0.0225)
+
+    # # Create colorbar
+    # cbar = fig.colorbar(im3, ax=[ax3], ticks=[0, 1], pad = 0.2, label = "Model Uncertainty")
+    # cbar.ax.set_yticklabels(['Incorrect', 'Correct'], fontsize=12)
+    # cbar.ax.tick_params(labelsize=10)
+    # cbar.ax.yaxis.label.set_rotation(-90)
+    # cbar.ax.yaxis.label.set_fontsize(15)
+    # cbar.ax.yaxis.labelpad = 20 
+    # pos = cbar.ax.get_position()  # get current position [x0, y0, width, height]
+    # cbar.ax.set_position([pos.x0 + 0.13, pos.y0-0.04, pos.width*0.5, pos.height])
+
+    fig.subplots_adjust(left=0.05, right=0.90, bottom=0.06, top=0.90)
+    fig.subplots_adjust(wspace=0.3, hspace=0.1)
+    plt.savefig("results/validation_plot.png")
+
+    # Computing the correlation between the error and the predictive uncertainty
+    print("Error vs. Uncertainty Correlation")
+    print(jnp.corrcoef(jnp.sqrt(Z_hk_var).ravel(), (jnp.abs((Z_hk - Z_125))).ravel())[0,1])
 
 if __name__ == "__main__":
     comparison_plot()
-    hf_plot() 
+    # hf_plot() 
+    validation_plot()

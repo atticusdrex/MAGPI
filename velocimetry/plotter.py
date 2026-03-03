@@ -343,7 +343,7 @@ def validation_plot():
     cbar_left.ax.yaxis.label.set_fontsize(15)
     cbar_left.ax.yaxis.labelpad = 20
     pos = cbar_left.ax.get_position()  # get current position [x0, y0, width, height]
-    cbar_left.ax.set_position([pos.x0 + 0.13, pos.y0+0.02, pos.width*0.5, pos.height])
+    cbar_left.ax.set_position([pos.x0 + 0.13, pos.y0+0.04, pos.width*0.5, pos.height])
 
     # Hyperkriging vs. 125 micrometer error plot
     im2 = ax2.pcolormesh(X, Y, jnp.sqrt(Z_hk_var), cmap = 'Oranges')
@@ -360,7 +360,7 @@ def validation_plot():
     cbar_right.ax.yaxis.label.set_fontsize(15)
     cbar_right.ax.yaxis.labelpad = 20 
     pos = cbar_right.ax.get_position()  # get current position [x0, y0, width, height]
-    cbar_right.ax.set_position([pos.x0 + 0.13, pos.y0-0.04, pos.width*0.5, pos.height])
+    cbar_right.ax.set_position([pos.x0 + 0.13, pos.y0-0.0, pos.width*0.5, pos.height])
 
     # # Confidence Interval Plot
     # from matplotlib.colors import ListedColormap, BoundaryNorm 
@@ -387,8 +387,8 @@ def validation_plot():
     # pos = cbar.ax.get_position()  # get current position [x0, y0, width, height]
     # cbar.ax.set_position([pos.x0 + 0.13, pos.y0-0.04, pos.width*0.5, pos.height])
 
-    fig.subplots_adjust(left=0.05, right=0.90, bottom=0.06, top=0.90)
-    fig.subplots_adjust(wspace=0.3, hspace=0.1)
+    fig.subplots_adjust(left=0.05, right=0.90, bottom=0.1, top=0.95)
+    fig.subplots_adjust(wspace=0.3, hspace=0.15)
     plt.savefig("results/validation_plot.png")
 
     # Computing the correlation between the error and the predictive uncertainty
@@ -396,6 +396,6 @@ def validation_plot():
     print(jnp.corrcoef(jnp.sqrt(Z_hk_var).ravel(), (jnp.abs((Z_hk - Z_125))).ravel())[0,1])
 
 if __name__ == "__main__":
-    comparison_plot()
+    # comparison_plot()
     # hf_plot() 
     validation_plot()

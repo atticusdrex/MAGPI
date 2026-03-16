@@ -95,7 +95,7 @@ if __name__ == "__main__":
     # Declaring and training Kennedy O'Hagan model 
     print("\nTraining Kennedy O'Hagan model...")
     koh = KennedyOHagan(
-        data_dict, RBF, Linear, max_cond = 1e5, epsilon = 1e-12
+        data_dict, RBF, Constant, max_cond = 1e5, epsilon = 1e-12
     )
 
     koh.optimize(0, params = ['k_param', 'm_param', 'rho', 'noise_var'], lr = 1e-1, epochs = 250, beta1 = 0.9, beta2=0.999)
@@ -107,7 +107,7 @@ if __name__ == "__main__":
     # Declaring and training NARGP model 
     print("\nTraining NARGP model...")
     nargp = NARGP(
-        data_dict, NARGP_RBF, Linear, max_cond = 1e5, epsilon = 1e-12
+        data_dict, NARGP_RBF, Constant, max_cond = 1e5, epsilon = 1e-12
     )
 
     nargp.optimize(0, params = ['k_param', 'm_param', 'noise_var'], lr = 1e-1, epochs = 250, beta1 = 0.9, beta2=0.999)
@@ -120,7 +120,7 @@ if __name__ == "__main__":
 
     # Training Single-Fidelity Kriging model 
     print("\nTraining Kriging model...")
-    kr_model = GP(data_dict[4]['X'], data_dict[4]['Y'], RBF, Linear, kernel_params = jnp.ones(3), noise_var = 1e-9, epsilon = 1e-8, max_cond = 1e5, calibrate=True)
+    kr_model = GP(data_dict[4]['X'], data_dict[4]['Y'], RBF, Constant, kernel_params = jnp.ones(3), noise_var = 1e-9, epsilon = 1e-8, max_cond = 1e5, calibrate=True)
     optimizer = ADAM(kr_model, neg_mll, beta1=0.9, beta2=0.999)
     optimizer.run(1e-2, 25000, ['k_param', 'm_param', 'noise_var'])
 

@@ -391,8 +391,8 @@ def validation_plot():
 
 
     # Creating the figure with a grid of subplots
-    fig, axes = plt.subplots(2,1, figsize=(8.5*1.5, 4*1.5), dpi=300)
-    ax1, ax2 = axes.ravel()
+    fig, axes = plt.subplots(3,1, figsize=(8.5*1.5, 7*1.5), dpi=300)
+    ax1, ax2, ax3 = axes.ravel()
 
     # # 125-resolution plot 
     X, Y, Z_125 = to_grid(scaler.inverse_transform(Xtest), Ytest, ratio, X_partitions = 500)
@@ -437,30 +437,31 @@ def validation_plot():
     pos = cbar_right.ax.get_position()  # get current position [x0, y0, width, height]
     cbar_right.ax.set_position([pos.x0 + 0.13, pos.y0-0.0, pos.width*0.5, pos.height])
 
-    # # Confidence Interval Plot
-    # from matplotlib.colors import ListedColormap, BoundaryNorm 
-    # cmap = ListedColormap(['white', 'green'])
-    # norm = BoundaryNorm([-0.5, 0.5, 1.5], cmap.N)
-    # Z_correct = np.zeros_like(Z_hk)
-    # Z_hk_conf = jnp.sqrt(Z_hk_var)
-    # Z_correct[(Z_125 >= Z_hk - 2.58 * Z_hk_conf) & (Z_125 <= Z_hk + 2.58 * Z_hk_conf)] = 1
-    # im3 = ax3.pcolormesh(X, Y, Z_correct, cmap = cmap, norm = norm)
-    # ax3.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
-    # ax3.set_title("True Flow Field within 99% Confidence Interval", fontsize=15)
-    # ax3.set_xlabel("X Coordinate (m)")
-    # ax3.set_ylabel("Y Coordinate (m)")
-    # ax3.set_xlim(0.0, 0.08)
-    # ax3.set_ylim(-0.000, 0.0225)
+    # Confidence Interval Plot
+    from matplotlib.colors import ListedColormap, BoundaryNorm 
+    cmap = ListedColormap(['white', 'green'])
+    norm = BoundaryNorm([-0.5, 0.5, 1.5], cmap.N)
+    Z_correct = np.zeros_like(Z_hk)
+    Z_hk_conf = jnp.sqrt(Z_hk_var)
+    Z_correct[(Z_125 >= Z_hk - 2.58 * Z_hk_conf) & (Z_125 <= Z_hk + 2.58 * Z_hk_conf)] = 1
+    print(jnp.mean(Z_correct))
+    im3 = ax3.pcolormesh(X, Y, Z_correct, cmap = cmap, norm = norm)
+    ax3.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
+    ax3.set_title("True Flow Field within 99% Confidence Interval", fontsize=15)
+    ax3.set_xlabel("X Coordinate (m)")
+    ax3.set_ylabel("Y Coordinate (m)")
+    ax3.set_xlim(0.0, 0.08)
+    ax3.set_ylim(-0.000, 0.0225)
 
-    # # Create colorbar
-    # cbar = fig.colorbar(im3, ax=[ax3], ticks=[0, 1], pad = 0.2, label = "Model Uncertainty")
-    # cbar.ax.set_yticklabels(['Incorrect', 'Correct'], fontsize=12)
-    # cbar.ax.tick_params(labelsize=10)
-    # cbar.ax.yaxis.label.set_rotation(-90)
-    # cbar.ax.yaxis.label.set_fontsize(15)
-    # cbar.ax.yaxis.labelpad = 20 
-    # pos = cbar.ax.get_position()  # get current position [x0, y0, width, height]
-    # cbar.ax.set_position([pos.x0 + 0.13, pos.y0-0.04, pos.width*0.5, pos.height])
+    # Create colorbar
+    cbar = fig.colorbar(im3, ax=[ax3], ticks=[0, 1], pad = 0.2, label = "Model Uncertainty")
+    cbar.ax.set_yticklabels(['Incorrect', 'Correct'], fontsize=12)
+    cbar.ax.tick_params(labelsize=10)
+    cbar.ax.yaxis.label.set_rotation(-90)
+    cbar.ax.yaxis.label.set_fontsize(15)
+    cbar.ax.yaxis.labelpad = 20 
+    pos = cbar.ax.get_position()  # get current position [x0, y0, width, height]
+    cbar.ax.set_position([pos.x0 + 0.13, pos.y0-0.04, pos.width*0.5, pos.height])
 
     fig.subplots_adjust(left=0.05, right=0.90, bottom=0.1, top=0.95)
     fig.subplots_adjust(wspace=0.3, hspace=0.15)
@@ -474,5 +475,5 @@ def validation_plot():
 if __name__ == "__main__":
     # comparison_plot()
     # hf_plot() 
-    # validation_plot()
-    hf_comparison_plot()
+    validation_plot()
+    # hf_comparison_plot()

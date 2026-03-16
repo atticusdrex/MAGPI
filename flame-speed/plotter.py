@@ -125,6 +125,7 @@ if __name__ == "__main__":
         if plot_num + 1 == 1:
             plt.title("Proposed Method")
         plt.ylabel("$T_0=%dK$" % (test_temp), fontsize=14)
+        plt.ylim(np.min(Ysim)-0.1, np.max(Ysim)+0.1)
         if plot_num + 1 < 4:
             ax.set_xticks([])         # Removes all tick marks
             ax.set_xlabel('')         # Removes the axis label
@@ -146,7 +147,8 @@ if __name__ == "__main__":
             ax.set_xlabel('')         # Removes the axis label
         ax.set_yticks([])         # Removes all tick marks
         ax.set_ylabel('')         # Removes the axis label
-        
+        plt.ylim(np.min(Ysim)-0.1, np.max(Ysim)+0.1)
+
         ax = plt.subplot(4,4,4*plot_num+3)
         # Plotting the NARGP predictions with uncertainty estimates
         plt.plot(scaler.inverse_transform(Xtest)[:,0], nargp_mean, color = 'orange', label = 'NARGP')
@@ -164,6 +166,7 @@ if __name__ == "__main__":
             ax.set_xlabel('')         # Removes the axis label
         ax.set_yticks([])         # Removes all tick marks
         ax.set_ylabel('')         # Removes the axis label
+        plt.ylim(np.min(Ysim)-0.1, np.max(Ysim)+0.1)
 
         ax = plt.subplot(4,4,4*plot_num+4)
         # Plotting the NARGP predictions with uncertainty estimates
@@ -182,21 +185,7 @@ if __name__ == "__main__":
             ax.set_xlabel('')         # Removes the axis label
         ax.set_yticks([])         # Removes all tick marks
         ax.set_ylabel('')         # Removes the axis label
-
-        # # Plotting the Fidelity-3 training data for comparison 
-        # inds = (scaler.inverse_transform(data_dict[3]['X'])[:,1] == test_temp) 
-        # Xsim, Ysim = data_dict[3]['X'][inds,:], data_dict[3]['Y'][inds]
-        # plt.scatter(scaler.inverse_transform(Xsim)[:,0], (Ysim), marker = '.', color = 'black', label = 'Lu 206-Step Mechanism')
-        # # Plotting the unseen high-fidelity testing data 
-        # plt.scatter(Xtrue[:,0], Ytrue, marker = '+', color = 'red', label = "High-Fidelity Testing Data")
-        # Plot labeling 
-        # plt.title("Predictions at %dK" % (test_temp))
-        # if plot_num > 1:
-        #     plt.xlabel("Equivalence Ratio, $\phi$")
-        # if plot_num == 0 or plot_num == 2:
-        #     plt.ylabel("Log Laminar Flame Speed - log(m/s)")
-        # if plot_num == 0:
-        #     plt.legend()
+        plt.ylim(np.min(Ysim)-0.1, np.max(Ysim)+0.1)
 
         # Fitting a degree-three polynomial through the testing points so we have a more dense error metric
         features = PolynomialFeatures(degree=3)

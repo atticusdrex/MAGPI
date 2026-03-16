@@ -4,7 +4,7 @@ plt.rcParams.update({
     "font.family": "serif",
     'font.serif': ["Times New Roman"],
     'text.latex.preamble': r'\\usepackage{amsmath}',
-    'mathtext.fontset': 'cm',
+    'mathtext.fontset': 'stix',
 })
 
 def hf_plot():
@@ -54,6 +54,80 @@ def hf_plot():
         plt.legend(fontsize=11, loc = 'upper right')
         plt.tight_layout()
         plt.savefig("results/sample_plot.png")
+
+def hf_comparison_plot():
+    # Specifying target qoi and grid spacing 
+    target_qoi, grid_spacing = 'U', 0.005
+
+    # Loading data dictionary
+    scaler, data_dict, ratio, train_tuple, x_partitions = get_data_dict(target_qoi=target_qoi, grid_spacing=grid_spacing) 
+
+    # Extracting high-fidelity training data 
+    Xtrain, Ytrain = train_tuple
+
+    # Storing training and testing data
+    Xtest, Ytest = data_dict[4]['X'], data_dict[4][target_qoi]
+    data_dict[4]['X'], data_dict[4][target_qoi] = Xtrain, Ytrain
+
+    # Training low-fidelity surrogate models with KNN 
+    train_features, test_features = generate_features(data_dict, Xtrain, Xtest, n_neighbors = 10)
+
+    # Loading and making predictions with the Hyperkriging model 
+    with open("models/magpi.pkl", "rb") as infile:
+        magpi_model = pickle.load(infile)
+    magpi_mean, magpi_var = magpi_model.predict(test_features, full_cov = False)
+
+    # Visualizing High-Fidelity training data 
+    with plt.rc_context({"font.size": 12}):
+        fig = plt.figure(figsize=(10, 5.5), dpi = 400)
+
+        # Making the norm 
+        norm = TwoSlopeNorm(vmin=-0.2, vcenter=0.25, vmax=0.7)
+
+        plt.subplot(2,1,1)
+        # Interpolating the data to a grid of points (500 partitions)
+        X, Y, Z = to_grid(scaler.inverse_transform(Xtest), Ytest, ratio, X_partitions = 500)
+        plt.pcolormesh(X, Y, Z, cmap = 'inferno', norm = norm)
+
+        
+
+        cbar = plt.colorbar(label = 'Horizontal Velocity (km/s)')
+        cbar.ax.yaxis.label.set_rotation(-90)
+        cbar.ax.yaxis.labelpad = 20
+        cbar.ax.tick_params(labelsize=10)
+
+        # plt.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =3.0, color = 'white', label = None, zorder=1)
+        plt.scatter(scaler.inverse_transform(Xtrain)[:,0], scaler.inverse_transform(Xtrain)[:,1], s = 105.0, c = 'white', label = None, marker = 'P', zorder=2)
+        plt.scatter(scaler.inverse_transform(Xtrain)[:,0], scaler.inverse_transform(Xtrain)[:,1], s = 75.0, c = 'black', label = "Scarce Training Data", marker = '+', zorder=2)
+
+        plt.xlim(-0.0, 0.08)
+        plt.ylim(-0.0, 0.0225)
+        plt.ylabel("Y Coordinate (m)")
+        plt.title("High-Fidelity Flow Field Simulation", fontsize=11)
+        plt.legend(fontsize=11, loc = 'upper right')
+        plt.tight_layout()
+        
+
+        plt.subplot(2,1,2)
+        # Hyperkriging Approximation
+        X, Y, Z_hk = to_grid(scaler.inverse_transform(Xtest), magpi_mean, ratio, X_partitions = 500)
+        plt.pcolormesh(X, Y, Z_hk, cmap = 'inferno', norm = norm)
+
+        cbar = plt.colorbar(label = 'Horizontal Velocity (km/s)', norm=norm)
+        cbar.ax.yaxis.label.set_rotation(-90)
+        cbar.ax.yaxis.labelpad = 20
+        cbar.ax.tick_params(labelsize=10)
+
+        plt.xlim(-0.0, 0.08)
+        plt.ylim(-0.0, 0.0225)
+
+        plt.xlabel("X Coordinate (m)")
+        plt.ylabel("Y Coordinate (m)")
+        plt.title("Surrogate Model Prediction", fontsize=11)
+
+        fig.subplots_adjust(left=0.10, right=1.0, bottom=0.10, top=0.90)
+        fig.subplots_adjust(hspace=0.3)
+        plt.savefig("results/hf_comparison_plot.png")
 
 def comparison_plot():
     # Specifying target qoi and grid spacing 
@@ -396,7 +470,9 @@ def validation_plot():
     print("Error vs. Uncertainty Correlation")
     print(jnp.corrcoef(jnp.sqrt(Z_hk_var).ravel(), (jnp.abs((Z_hk - Z_125))).ravel())[0,1])
 
+
 if __name__ == "__main__":
     # comparison_plot()
     # hf_plot() 
-    validation_plot()
+    # validation_plot()
+    hf_comparison_plot()

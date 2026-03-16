@@ -346,7 +346,8 @@ def validation_plot():
     cbar_left.ax.set_position([pos.x0 + 0.13, pos.y0+0.04, pos.width*0.5, pos.height])
 
     # Hyperkriging vs. 125 micrometer error plot
-    im2 = ax2.pcolormesh(X, Y, jnp.sqrt(Z_hk_var), cmap = 'Oranges')
+    norm = TwoSlopeNorm(vmin=0.0, vcenter=0.03, vmax=0.06)
+    im2 = ax2.pcolormesh(X, Y, jnp.sqrt(Z_hk_var), cmap = 'Oranges', norm = norm)
     ax2.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
     ax2.set_title("Predictive Uncertainty of Proposed Method", fontsize=15)
     ax2.set_xlabel("X Coordinate (m)")

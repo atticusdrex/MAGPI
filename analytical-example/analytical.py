@@ -1,3 +1,4 @@
+# %%
 import sys
 sys.path.append("..")   # add parent folder (project/) to Python path
 from magpi.magpi import *   # now absolute import worksimport math import math 
@@ -73,13 +74,22 @@ data_dict = {
 
 plt.figure(figsize=(10,4),dpi = 400)
 plt.plot(Xtest.ravel(), funcs[0](Xtest).ravel(), linestyle = 'dashed', color = 'black', label = 'High-Fidelity Target Function')
-plt.scatter(hf_data[:,0], hf_data[:,1], s = 50, marker = '+', color = 'red', label = 'High-Fidelity Training Data')
+plt.scatter(hf_data[:,0], hf_data[:,1], s = 100, marker = '+', color = 'red', label = 'High-Fidelity Training Data')
+
+plt.scatter(mf_data[:,0], mf_data[:,1], s = 25, marker = '*', color = 'purple', label = "Medium-Fidelity Training Data")
+plt.plot(Xtest.ravel(), funcs[1](Xtest), linestyle = 'dashed', color = 'purple', alpha = 0.3)
+
+plt.scatter(lf_data[:,0], lf_data[:,1], s = 25, marker = '.', color = "#ce7500", label = "Low-Fidelity Training Data")
+plt.plot(Xtest.ravel(), funcs[2](Xtest), linestyle = '-', color = '#ce7500', alpha = 0.3)
 
 plt.xlabel("Input, $\mathbf{x}$")
-plt.ylabel("High-Fidelity Function Value")
+plt.ylabel("Function Value")
 plt.legend()
 plt.xlim([0,5.1])
+plt.title("Multifidelity Training Data for Analytical Test Problem")
 plt.savefig("results/training-data.png")
+
+# %%
 
 # Printing out correlation coefficients 
 print(np.corrcoef(funcs[0](Xtest).ravel(), funcs[1](Xtest.ravel()))[0,1])
@@ -126,7 +136,7 @@ nargp.optimize(2, params = ['k_param', 'm_param', 'noise_var'], lr = 2e-1, epoch
 print("\nTraining Kriging model...")
 kr_model = GP(data_dict[2]['X'], data_dict[2]['Y'], RBF, Constant, kernel_params = jnp.ones(2), noise_var = 1e-6, epsilon = 1e-8, max_cond = 1e5, calibrate=True)
 optimizer = ADAM(kr_model, neg_mll, beta1=0.9, beta2=0.999)
-optimizer.run(1e-2, n2, ['k_param', 'm_param', 'noise_var'])
+optimizer.run(1e-2, n3, ['k_param', 'm_param', 'noise_var'])
 
 # Saving the models 
 if True:
@@ -139,7 +149,17 @@ if True:
     with open("models/kr.pkl", "wb") as outfile:
         pickle.dump(kr_model, outfile)
 
-# Making predictions with each model 
+# %% Making predictions with each model 
+
+with open("models/magpi.pkl", "rb") as infile:
+    magpi = pickle.load(infile) 
+with open("models/koh.pkl", "rb") as infile:
+    koh = pickle.load(infile) 
+with open("models/nargp.pkl", "rb") as infile:
+    nargp = pickle.load(infile) 
+with open("models/kr.pkl", "rb") as infile:
+    kr_model = pickle.load(infile) 
+
 magpi_mean, magpi_cov = magpi.predict(Xtest, 2, full_cov = False)
 magpi_conf = 2.00 * jnp.sqrt(magpi_cov)
 
@@ -205,3 +225,4 @@ print("Proposed Method           \\mathbf{%.3e}   & \\mathbf{%.4f}  &  \\mathbf{
 print("Kennedy O'Hagan           %.3e   & %.4f  &  %.4f \\ \\" % (np.sqrt(MSE(Ytest, koh_mean)), np.corrcoef(Ytest.ravel(), koh_mean.ravel())[0,1]**2, -delta_neg_mll(koh.d[2]['model'], koh.d[2]['model'].p)))
 print("NARGP                     %.3e   & %.4f  &  %.4f \\ \\" % (np.sqrt(MSE(Ytest, nargp_mean)), np.corrcoef(Ytest.ravel(), nargp_mean.ravel())[0,1]**2, -neg_mll(nargp.d[2]['model'], nargp.d[2]['model'].p)))
 print("Kriging                   %.3e   & %.4f  &  %.4f \\ \\" % (np.sqrt(MSE(Ytest, kr_mean)), np.corrcoef(Ytest.ravel(), kr_mean.ravel())[0,1]**2, -neg_mll(kr_model, kr_model.p)))
+# %%

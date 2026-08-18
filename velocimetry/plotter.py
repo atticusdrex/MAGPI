@@ -176,8 +176,8 @@ def comparison_plot():
 
 
     # Creating the figure with a grid of subplots
-    fig, axes = plt.subplots(4, 2, figsize=(8.5*1.5, 6*1.5), dpi=300)
-    ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8 = axes.ravel()
+    fig, axes = plt.subplots(3, 2, figsize=(8.5*1.5, 4.5*1.5), dpi=400)
+    ax1, ax2, ax5, ax6, ax7, ax8 = axes.ravel()
 
     # # Making the 1,2 axis completely blank
     # ax2.axis("off")
@@ -219,26 +219,26 @@ def comparison_plot():
     ax2.set_xlim(0.0, 0.08)
     ax2.set_ylim(-0.000, 0.0225)
 
-    # 177 KNN approximation
-    X, Y, Z_KNN = to_grid(scaler.inverse_transform(Xtest), test_pred, ratio, X_partitions = 500)
-    ax3.pcolormesh(X, Y, Z_KNN, cmap = 'inferno')
-    # 3x5.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
-    ax3.set_title("KNN Approximation of 177$\mu$m Simulation")
-    ax3.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
-    ax3.set_ylabel("Y Coordinate (m)")
-    ax3.set_xlim(0.0, 0.08)
-    ax3.set_ylim(-0.000, 0.0225)
-    ax3.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
-    ax3.yaxis.set_major_locator(MaxNLocator(nbins=5))
+    # # 177 KNN approximation
+    # X, Y, Z_KNN = to_grid(scaler.inverse_transform(Xtest), test_pred, ratio, X_partitions = 500)
+    # ax3.pcolormesh(X, Y, Z_KNN, cmap = 'inferno')
+    # # 3x5.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
+    # ax3.set_title("KNN Approximation of 177$\mu$m Simulation")
+    # ax3.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    # ax3.set_ylabel("Y Coordinate (m)")
+    # ax3.set_xlim(0.0, 0.08)
+    # ax3.set_ylim(-0.000, 0.0225)
+    # ax3.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+    # ax3.yaxis.set_major_locator(MaxNLocator(nbins=5))
 
-    # 177 vs. 177 KNN error plot
-    ax4.pcolormesh(X, Y, Z_KNN - Z_177, cmap = 'RdBu', norm=norm)
-    # 4x6.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
-    ax4.set_title("KNN Prediction - 177$\mu$m Simulation")
-    ax4.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
-    ax4.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
-    ax4.set_xlim(0.0, 0.08)
-    ax4.set_ylim(-0.000, 0.0225)
+    # # 177 vs. 177 KNN error plot
+    # ax4.pcolormesh(X, Y, Z_KNN - Z_177, cmap = 'RdBu', norm=norm)
+    # # 4x6.plot([0, 0.08], [0.0, 0.0], linestyle = 'dotted', linewidth =1.0, color = 'black', label = 'Axis of Symmetry')
+    # ax4.set_title("KNN Prediction - 177$\mu$m Simulation")
+    # ax4.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
+    # ax4.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    # ax4.set_xlim(0.0, 0.08)
+    # ax4.set_ylim(-0.000, 0.0225)
 
     # Hyperkriging Approximation
     X, Y, Z_hk = to_grid(scaler.inverse_transform(Xtest), magpi_mean, ratio, X_partitions = 500)
@@ -325,7 +325,7 @@ def comparison_plot():
     ax8.set_ylim(-0.000, 0.0225)
 
     # Shared colorbar for left plots 
-    cbar = fig.colorbar(im2, ax=[ax1, ax3, ax5, ax7], orientation='vertical', pad = 0.2, label = "Horizontal Velocity (km / s)")
+    cbar = fig.colorbar(im2, ax=[ax1, ax5, ax7], orientation='vertical', pad = 0.2, label = "Horizontal Velocity (km / s)")
     cbar.ax.tick_params(labelsize=10)
     cbar.ax.yaxis.label.set_rotation(-90)
     cbar.ax.yaxis.label.set_fontsize(15)
@@ -334,7 +334,7 @@ def comparison_plot():
     cbar.ax.set_position([pos.x0 + 0.01, pos.y0, pos.width*0.5, pos.height])
 
     # Shared colorbar for right plots 
-    cbar_right = fig.colorbar(im4, ax=[ax2, ax4, ax6, ax8], orientation='vertical', pad = 0.4, label = "Error (km / s)")
+    cbar_right = fig.colorbar(im4, ax=[ax2, ax6, ax8], orientation='vertical', pad = 0.4, label = "Error (km / s)")
     cbar_right.ax.tick_params(labelsize=10)
     cbar_right.ax.yaxis.label.set_rotation(-90)
     cbar_right.ax.yaxis.label.set_fontsize(15)
@@ -473,7 +473,7 @@ def validation_plot():
 
 
 if __name__ == "__main__":
-    # comparison_plot()
+    comparison_plot()
     # hf_plot() 
-    validation_plot()
+    # validation_plot()
     # hf_comparison_plot()
